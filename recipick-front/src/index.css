@@ -1,6 +1,24 @@
-/* CSS Reset */
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #D4760B;
+  --color-primary-dark: #8F5008;
+  --color-black: #222221;
+  --color-light: #FFFAFA;
+  --color-solid: #D3CEC9;
+  --color-solid-dark: #BEB7AE;
+  --color-dark-light: #565453;
+  --color-bg: #F4F1EE;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-black);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
 * {
-  margin: 0;
-  padding: 0;
+  font-family: 'Poppins', sans-serif;
   box-sizing: border-box;
 }
