@@ -10,7 +10,9 @@ api_key = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=api_key)
 modelo = genai.GenerativeModel("gemini-1.5-flash")
 
-app = Flask(__name__, static_folder="frontend", static_url_path="/")
+DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
+app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
+
 CORS(app)
 
 @app.route("/api/receitas", methods=["POST"])
