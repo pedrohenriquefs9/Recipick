@@ -1,20 +1,20 @@
 
-# 🧠 ReciPick – Assistente de Receitas com IA
+# ReciPick – Assistente de Receitas com IA
 
 Este é um projeto full-stack que utiliza **React (frontend)** e **Flask + Gemini API (backend)** para sugerir receitas com base nos ingredientes que o usuário informa. Também permite buscar por receitas específicas, simulando uma conversa com um chatbot.
 
 ---
 
-## ✅ Pré-requisitos
+## Pré-requisitos
 
 - [Python](https://www.python.org/) (3.8 ou superior)
 - Conta no [Google AI Studio](https://makersuite.google.com/app) com chave da API Gemini
 
-> ⚠️ O `Node.js` só é necessário se você for alterar o frontend e quiser rodar `npm run build`. A versão já compilada está pronta para uso.
+> O `Node.js` só é necessário se você for alterar o frontend e quiser rodar `npm run build`. A versão já compilada está pronta para uso.
 
 ---
 
-## 🚀 Como rodar localmente (Windows)
+## Como rodar localmente (Windows)
 
 ### 1. Clone o projeto
 
@@ -54,7 +54,7 @@ Abra seu navegador em: [http://localhost:5000](http://localhost:5000)
 
 ---
 
-## 🤖 Funcionalidades
+## Funcionalidades
 
 - Adicione ingredientes por chat ou clique
 - Remova ingredientes individualmente com "×"
@@ -65,7 +65,7 @@ Abra seu navegador em: [http://localhost:5000](http://localhost:5000)
 
 ---
 
-## 🛑 Não versionar os seguintes arquivos:
+## Não versionar os seguintes arquivos:
 
 - `backend/.env`
 - `backend/venv/`
@@ -73,6 +73,6 @@ Abra seu navegador em: [http://localhost:5000](http://localhost:5000)
 
 ---
 
-## 💡 Licença
+## Licença
 
 Este projeto é acadêmico/demonstrativo, sem fins lucrativos.
