@@ -48,7 +48,7 @@ Este script irá automaticamente:
 
 ---
 
-## 🖥 Acesse o app
+## Acesse o app
 
 Abra seu navegador em: [http://localhost:5000](http://localhost:5000)
 
