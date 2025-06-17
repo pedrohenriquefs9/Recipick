@@ -9,7 +9,6 @@ export function SettingsModal({ onClose, settings, onSettingsChange }) {
     onSettingsChange({ [key]: value });
   };
 
-  // Função auxiliar para aplicar estilos nos botões
   const getButtonClass = (key, value) => clsx(
     'px-4 py-2 rounded-full text-sm font-semibold transition-colors',
     settings[key] === value 
@@ -18,7 +17,6 @@ export function SettingsModal({ onClose, settings, onSettingsChange }) {
   );
 
   return (
-    // Overlay semi-transparente que cobre a tela inteira
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20"
       onClick={onClose} // Fecha o modal ao clicar fora

@@ -5,21 +5,17 @@ import json
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# --- Configuração Inicial ---
+# Configuração Inicial
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=api_key)
 modelo = genai.GenerativeModel("gemini-1.5-flash")
 
-# --- Definição de Caminhos ---
+# Definição de Caminhos
 DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
-
-# --- 1. APLICAÇÃO FLASK É CRIADA AQUI ---
-# Esta linha DEVE vir antes de qualquer @app.route
 app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
 CORS(app)
 
-# --- Funções Auxiliares (Opcional, mas boa prática manter perto do topo) ---
 def construir_prompt_com_settings(base_prompt, settings):
     if not settings:
         return base_prompt
@@ -27,11 +23,13 @@ def construir_prompt_com_settings(base_prompt, settings):
     instrucoes_adicionais = []
     portion_map = { 'pequeno': 'uma porção pequena (individual)', 'medio': 'uma porção média (2 pessoas)', 'grande': 'uma porção grande (4+ pessoas)'}
     complexity_map = { 'rapida': 'uma receita rápida e simples (até 30 min)', 'elaborada': 'uma receita mais elaborada e detalhada' }
-    style_map = { 'popular': 'uma receita popular e clássica', 'criativo': 'uma receita criativa e inusitada' }
+    style_map = { 'popular': 'popular e clássica', 'criativo': 'criativa e inusitada' } # Textos um pouco mais diretos
 
     instrucoes_adicionais.append(f"- A receita deve ser para {portion_map.get(settings.get('portionSize'), 'uma porção média')}.")
     instrucoes_adicionais.append(f"- Deve ser {complexity_map.get(settings.get('complexity'), 'rápida e simples')}.")
-    instrucoes_adicionais.append(f"- O estilo da receita deve ser mais para {style_map.get(settings.get('style'), 'criativo')}.")
+    
+    estilo_selecionado = style_map.get(settings.get('style'), 'criativa e inusitada')
+    instrucoes_adicionais.append(f"- O estilo da receita DEVE ser: {estilo_selecionado}.")
 
     if settings.get('isVegetarian'):
         instrucoes_adicionais.append("- A receita DEVE ser estritamente vegetariana (sem nenhum tipo de carne, incluindo peixes e frutos do mar).")
@@ -42,9 +40,6 @@ def construir_prompt_com_settings(base_prompt, settings):
 
     prompt_final = f"{base_prompt}\n\nLeve em consideração as seguintes preferências do usuário ao gerar as receitas:\n" + "\n".join(instrucoes_adicionais)
     return prompt_final
-
-# --- 2. AS ROTAS DA API SÃO DEFINIDAS AQUI ---
-# Todas as rotas devem vir DEPOIS da linha 'app = Flask(...)'
 
 @app.route("/api/normalizar-ingredientes", methods=["POST"])
 def normalizar_ingredientes():
@@ -130,7 +125,7 @@ Apresente de forma clara, usando markdown sem emojis.
     resposta = modelo.generate_content(prompt_final)
     return jsonify({"receita": resposta.text})
 
-# --- 3. ROTAS PARA SERVIR O FRONTEND ---
+# Rotas para servir o frontend
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
@@ -139,6 +134,5 @@ def serve(path):
     else:
         return send_from_directory(app.static_folder, "index.html")
 
-# --- 4. INICIALIZAÇÃO DO SERVIDOR ---
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

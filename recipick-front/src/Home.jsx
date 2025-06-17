@@ -134,7 +134,6 @@ function Home() {
     setResultadoPesquisa(null);
   }
 
-  // FUNÇÃO CORRIGIDA
   function sairModoPesquisa() {
     setIngredientes(ingredientesSalvos); // Restaura os balões
     setResposta(""); // 1. Limpa a mensagem "Ok, qual receita..."
