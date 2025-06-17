@@ -5,13 +5,11 @@ import json
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Configuração Inicial
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=api_key)
 modelo = genai.GenerativeModel("gemini-1.5-flash")
 
-# Definição de Caminhos
 DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
 app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
 CORS(app)
@@ -23,13 +21,9 @@ def construir_prompt_com_settings(base_prompt, settings):
     instrucoes_adicionais = []
     portion_map = { 'pequeno': 'uma porção pequena (individual)', 'medio': 'uma porção média (2 pessoas)', 'grande': 'uma porção grande (4+ pessoas)'}
     complexity_map = { 'rapida': 'uma receita rápida e simples (até 30 min)', 'elaborada': 'uma receita mais elaborada e detalhada' }
-    style_map = { 'popular': 'popular e clássica', 'criativo': 'criativa e inusitada' } # Textos um pouco mais diretos
-
+    
     instrucoes_adicionais.append(f"- A receita deve ser para {portion_map.get(settings.get('portionSize'), 'uma porção média')}.")
     instrucoes_adicionais.append(f"- Deve ser {complexity_map.get(settings.get('complexity'), 'rápida e simples')}.")
-    
-    estilo_selecionado = style_map.get(settings.get('style'), 'criativa e inusitada')
-    instrucoes_adicionais.append(f"- O estilo da receita DEVE ser: {estilo_selecionado}.")
 
     if settings.get('isVegetarian'):
         instrucoes_adicionais.append("- A receita DEVE ser estritamente vegetariana (sem nenhum tipo de carne, incluindo peixes e frutos do mar).")
@@ -38,8 +32,12 @@ def construir_prompt_com_settings(base_prompt, settings):
     if restrictions and restrictions.strip():
         instrucoes_adicionais.append(f"- A receita NÃO PODE conter os seguintes ingredientes sob nenhuma hipótese: {restrictions.strip()}.")
 
-    prompt_final = f"{base_prompt}\n\nLeve em consideração as seguintes preferências do usuário ao gerar as receitas:\n" + "\n".join(instrucoes_adicionais)
-    return prompt_final
+    # Adiciona as instruções apenas se houver alguma
+    if instrucoes_adicionais:
+      prompt_final = f"{base_prompt}\n\nLeve em consideração também as seguintes preferências do usuário ao gerar as receitas:\n" + "\n".join(instrucoes_adicionais)
+      return prompt_final
+    
+    return base_prompt
 
 @app.route("/api/normalizar-ingredientes", methods=["POST"])
 def normalizar_ingredientes():
@@ -47,23 +45,18 @@ def normalizar_ingredientes():
     ingredientes_brutos = data.get("ingredientes", [])
     if not ingredientes_brutos:
         return jsonify({"ingredientes_normalizados": []})
-
     prompt = f"""
-    Você é um especialista em culinária. Sua única tarefa é normalizar e corrigir a seguinte lista de nomes de ingredientes para sua forma mais comum e correta em português do Brasil.
-
+    Sua única tarefa é normalizar e corrigir a seguinte lista de nomes de ingredientes para sua forma mais comum e correta em português do Brasil.
     Regras:
-    1. Corrija erros de digitação e acentuação (ex: "cenora" -> "cenoura", "feijaox" -> "feijão").
-    2. Padronize o nome, removendo detalhes excessivos (ex: "Tomate italiano maduro" -> "tomate").
-    3. Se um item não for um ingrediente culinário reconhecível, retorne uma string vazia "" no lugar dele.
-    4. Sua resposta deve ser APENAS uma lista JSON de strings, sem nenhum texto adicional, markdown ou explicação. A ordem e a quantidade de itens na lista de saída devem ser as mesmas da lista de entrada.
-
+    1. Corrija erros (ex: "feijaox" -> "feijão").
+    2. Padronize o nome (ex: "Tomate italiano maduro" -> "tomate").
+    3. Se um item não for um ingrediente, retorne uma string vazia "".
+    4. Sua resposta deve ser APENAS uma lista JSON de strings.
     Exemplo de Entrada: ["feijaox", "cebola roxa", "Qeijo", "asdfgh"]
     Sua Saída: ["feijão", "cebola roxa", "queijo", ""]
-
     ---
-    Lista de ingredientes para normalizar: {json.dumps(ingredientes_brutos)}
+    Lista: {json.dumps(ingredientes_brutos)}
     """
-
     try:
         resposta = modelo.generate_content(prompt)
         lista_str = resposta.text.strip().replace("`", "").replace("json", "").strip()
@@ -82,20 +75,35 @@ def gerar_receitas():
     if not ingredientes:
         return jsonify({"erro": "Nenhum ingrediente informado."}), 400
 
-    prompt_base = f"""Você é um assistente de receitas criativas. O usuário informou os seguintes ingredientes: {ingredientes}.
+    style = settings.get('style', 'criativo') # Padrão é 'criativo'
+
+    if style == 'popular':
+        prompt_base = f"""Você é um assistente de culinária focado em receitas **populares e clássicas**. Com base nos ingredientes: {ingredientes}.
 
 Tarefa:
-- Corrija erros nos nomes dos ingredientes.
-- Liste os ingredientes corrigidos como lista com `-`.
-- Sugira 3 receitas criativas usando apenas os ingredientes informados.
-  - Use pelo menos 3 frases no modo de preparo, com instruções úteis.
-- Sugira 2 ingredientes extras que combinariam bem.
-- Para cada novo ingrediente, sugira 1 nova receita.
+- Sugira 3 receitas **conhecidas e tradicionais** que usem esses ingredientes. Foque no que é familiar e amado pelo público.
+- Corrija e liste os ingredientes informados.
+- Use um modo de preparo claro e direto.
+- Sugira 2 ingredientes extras que combinariam bem com os pratos.
+- Para cada novo ingrediente, sugira 1 nova receita popular.
 
- Formato obrigatório:
+Formato obrigatório:
 - Use apenas **markdown puro** (sem emojis).
-- Não use espaçamentos desnecessários entre blocos.
-- Separe visualmente apenas com `---` (linha horizontal simples).
+- Separe visualmente apenas com `---`.
+"""
+    else: # Estilo criativo (padrão)
+        prompt_base = f"""Você é um assistente de receitas **criativas e ousadas**. Com base nos ingredientes: {ingredientes}.
+
+Tarefa:
+- Sugira 3 receitas **criativas e surpreendentes** usando os ingredientes informados, incentivando combinações inusitadas.
+- Corrija e liste os ingredientes informados.
+- Use um modo de preparo inspirador.
+- Sugira 2 ingredientes extras que elevariam o nível dos pratos.
+- Para cada novo ingrediente, sugira 1 nova receita criativa.
+
+Formato obrigatório:
+- Use apenas **markdown puro** (sem emojis).
+- Separe visualmente apenas com `---`.
 """
     
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
@@ -111,21 +119,12 @@ def pesquisar_receita():
     if not nome_receita:
         return jsonify({"erro": "Nome da receita não informado."}), 400
 
-    prompt_base = f"""Quero a receita de: {nome_receita}.
-Apresente de forma clara, usando markdown sem emojis.
-
-**Nome da Receita**
-**Ingredientes:**
-- item
-**Modo de preparo:**
-- passo 1
-"""
-
+    prompt_base = f"""Quero a receita de: {nome_receita}. Apresente de forma clara, usando markdown."""
+    
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
     resposta = modelo.generate_content(prompt_final)
     return jsonify({"receita": resposta.text})
 
-# Rotas para servir o frontend
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
