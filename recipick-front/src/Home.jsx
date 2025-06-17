@@ -21,7 +21,7 @@ function Home() {
   const [resultadoPesquisa, setResultadoPesquisa] = useState(null);
   const [settings, setSettings] = useState(defaultSettings);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isNormalizing, setIsNormalizing] = useState(false); // Estado de carregamento
+  const [isNormalizing, setIsNormalizing] = useState(false);
   const latestRequestRef = useRef(0);
 
   useEffect(() => {
@@ -59,10 +59,11 @@ function Home() {
   }, [settings]);
 
   useEffect(() => {
-    if (ingredientes.length > 0) {
+    // Se não estivermos em modo pesquisa (sem ingredientes salvos), busca receitas ao mudar settings
+    if (ingredientes.length > 0 && ingredientesSalvos.length === 0) {
       enviarIngredientes(ingredientes);
     }
-  }, [settings, enviarIngredientes]);
+  }, [settings, ingredientes, ingredientesSalvos, enviarIngredientes]);
 
   function handleSettingsChange(changedSetting) {
     const newSettings = { ...settings, ...changedSetting };
@@ -71,15 +72,18 @@ function Home() {
   }
 
   async function adicionarIngredientes(textoInput) {
+    setIsNormalizing(true);
+    setResultadoPesquisa(null);
+
     const ingredientesPotenciais = textoInput
       .split(/,|\s+e\s+/)
       .map(ing => ing.trim())
       .filter(ing => ing.length > 0);
 
-    if (ingredientesPotenciais.length === 0) return;
-
-    setIsNormalizing(true);
-    setResultadoPesquisa(null);
+    if (ingredientesPotenciais.length === 0) {
+        setIsNormalizing(false);
+        return;
+    };
 
     try {
       const response = await fetch("http://localhost:5000/api/normalizar-ingredientes", {
@@ -130,12 +134,17 @@ function Home() {
     setResultadoPesquisa(null);
   }
 
+  // FUNÇÃO CORRIGIDA
   function sairModoPesquisa() {
-    setIngredientes(ingredientesSalvos);
+    setIngredientes(ingredientesSalvos); // Restaura os balões
+    setResposta(""); // 1. Limpa a mensagem "Ok, qual receita..."
+    
+    // 2. Se existiam ingredientes salvos, busca as receitas para eles
     if (ingredientesSalvos.length > 0) {
-      // Não gera receita ao sair do modo pesquisa, apenas restaura
+      enviarIngredientes(ingredientesSalvos);
     }
-    setIngredientesSalvos([]);
+    
+    setIngredientesSalvos([]); // Limpa a lista de ingredientes salvos
   }
 
   function limparTudo() {
