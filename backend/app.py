@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
-import json
+import json # Import já estava aqui, agora vamos usá-lo corretamente
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -21,9 +21,13 @@ def construir_prompt_com_settings(base_prompt, settings):
     instrucoes_adicionais = []
     portion_map = { 'pequeno': 'uma porção pequena (individual)', 'medio': 'uma porção média (2 pessoas)', 'grande': 'uma porção grande (4+ pessoas)'}
     complexity_map = { 'rapida': 'uma receita rápida e simples (até 30 min)', 'elaborada': 'uma receita mais elaborada e detalhada' }
-    
+    style_map = { 'popular': 'popular e clássica', 'criativo': 'criativa e inusitada' }
+
     instrucoes_adicionais.append(f"- A receita deve ser para {portion_map.get(settings.get('portionSize'), 'uma porção média')}.")
     instrucoes_adicionais.append(f"- Deve ser {complexity_map.get(settings.get('complexity'), 'rápida e simples')}.")
+    
+    estilo_selecionado = style_map.get(settings.get('style'), 'criativa e inusitada')
+    instrucoes_adicionais.append(f"- O estilo da receita DEVE ser: {estilo_selecionado}.")
 
     if settings.get('isVegetarian'):
         instrucoes_adicionais.append("- A receita DEVE ser estritamente vegetariana (sem nenhum tipo de carne, incluindo peixes e frutos do mar).")
@@ -32,7 +36,6 @@ def construir_prompt_com_settings(base_prompt, settings):
     if restrictions and restrictions.strip():
         instrucoes_adicionais.append(f"- A receita NÃO PODE conter os seguintes ingredientes sob nenhuma hipótese: {restrictions.strip()}.")
 
-    # Adiciona as instruções apenas se houver alguma
     if instrucoes_adicionais:
       prompt_final = f"{base_prompt}\n\nLeve em consideração também as seguintes preferências do usuário ao gerar as receitas:\n" + "\n".join(instrucoes_adicionais)
       return prompt_final
@@ -45,25 +48,32 @@ def normalizar_ingredientes():
     ingredientes_brutos = data.get("ingredientes", [])
     if not ingredientes_brutos:
         return jsonify({"ingredientes_normalizados": []})
+
     prompt = f"""
     Sua única tarefa é normalizar e corrigir a seguinte lista de nomes de ingredientes para sua forma mais comum e correta em português do Brasil.
     Regras:
     1. Corrija erros (ex: "feijaox" -> "feijão").
     2. Padronize o nome (ex: "Tomate italiano maduro" -> "tomate").
     3. Se um item não for um ingrediente, retorne uma string vazia "".
-    4. Sua resposta deve ser APENAS uma lista JSON de strings.
+    4. Sua resposta deve ser APENAS uma string JSON válida representando uma lista de strings. Não inclua markdown, explicações ou qualquer outro texto.
+    
     Exemplo de Entrada: ["feijaox", "cebola roxa", "Qeijo", "asdfgh"]
     Sua Saída: ["feijão", "cebola roxa", "queijo", ""]
     ---
-    Lista: {json.dumps(ingredientes_brutos)}
+    Lista de ingredientes para normalizar: {json.dumps(ingredientes_brutos)}
     """
+
     try:
         resposta = modelo.generate_content(prompt)
         lista_str = resposta.text.strip().replace("`", "").replace("json", "").strip()
+        
+        # CORREÇÃO: Trocando o frágil eval() pelo robusto json.loads()
         lista_normalizada = json.loads(lista_str)
+        
         return jsonify({"ingredientes_normalizados": lista_normalizada})
     except Exception as e:
-        print(f"Erro ao normalizar ingredientes: {e}")
+        print(f"Erro ao normalizar/parsear JSON da IA: {e}")
+        # Se falhar, retorna a lista original para o frontend lidar
         return jsonify({"ingredientes_normalizados": ingredientes_brutos})
 
 @app.route("/api/receitas", methods=["POST"])
@@ -75,7 +85,7 @@ def gerar_receitas():
     if not ingredientes:
         return jsonify({"erro": "Nenhum ingrediente informado."}), 400
 
-    style = settings.get('style', 'criativo') # Padrão é 'criativo'
+    style = settings.get('style', 'criativo')
 
     if style == 'popular':
         prompt_base = f"""Você é um assistente de culinária focado em receitas **populares e clássicas**. Com base nos ingredientes: {ingredientes}.

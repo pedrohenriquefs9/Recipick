@@ -5,6 +5,7 @@ import { ParametersChips } from "./components/ParametersChips";
 import { MessageInput } from "./MessageInput";
 import { SettingsModal } from "./components/SettingsModal";
 import ReactMarkdown from "react-markdown";
+import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
 
 const defaultSettings = {
   portionSize: 'medio',
@@ -22,6 +23,7 @@ function Home() {
   const [settings, setSettings] = useState(defaultSettings);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isNormalizing, setIsNormalizing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const latestRequestRef = useRef(0);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ function Home() {
     const requestId = latestRequestRef.current;
     
     try {
-      const response = await fetch("http://localhost:5000/api/receitas", {
+      const response = await fetch("/api/receitas", { // Caminho relativo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -59,7 +61,6 @@ function Home() {
   }, [settings]);
 
   useEffect(() => {
-    // Se não estivermos em modo pesquisa (sem ingredientes salvos), busca receitas ao mudar settings
     if (ingredientes.length > 0 && ingredientesSalvos.length === 0) {
       enviarIngredientes(ingredientes);
     }
@@ -74,6 +75,7 @@ function Home() {
   async function adicionarIngredientes(textoInput) {
     setIsNormalizing(true);
     setResultadoPesquisa(null);
+    setErrorMessage("");
 
     const ingredientesPotenciais = textoInput
       .split(/,|\s+e\s+/)
@@ -86,11 +88,17 @@ function Home() {
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/normalizar-ingredientes", {
+      // CORREÇÃO: Trocando a URL hardcoded por um caminho relativo
+      const response = await fetch("/api/normalizar-ingredientes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ingredientes: ingredientesPotenciais }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Erro de rede: ${response.statusText}`);
+      }
+
       const data = await response.json();
       
       const ingredientesValidos = data.ingredientes_normalizados
@@ -107,11 +115,13 @@ function Home() {
 
     } catch (error) {
       console.error("Erro ao normalizar ingredientes:", error);
+      setErrorMessage("Ocorreu uma falha ao conectar. Por favor, aguarde um instante e tente novamente.");
     } finally {
       setIsNormalizing(false);
     }
   }
 
+  // ... (resto das funções como removerIngrediente, limparTudo, etc.)
   function removerIngrediente(index) {
     setResultadoPesquisa(null);
     const novos = [...ingredientes];
@@ -135,15 +145,8 @@ function Home() {
   }
 
   function sairModoPesquisa() {
-    setIngredientes(ingredientesSalvos); // Restaura os balões
-    setResposta(""); // 1. Limpa a mensagem "Ok, qual receita..."
-    
-    // 2. Se existiam ingredientes salvos, busca as receitas para eles
-    if (ingredientesSalvos.length > 0) {
-      enviarIngredientes(ingredientesSalvos);
-    }
-    
-    setIngredientesSalvos([]); // Limpa a lista de ingredientes salvos
+    setIngredientes(ingredientesSalvos);
+    setIngredientesSalvos([]);
   }
 
   function limparTudo() {
@@ -156,7 +159,7 @@ function Home() {
 
   async function buscarReceitaPorNome(nome) {
     try {
-      const response = await fetch("http://localhost:5000/api/pesquisar", {
+      const response = await fetch("/api/pesquisar", { // Caminho relativo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -170,6 +173,7 @@ function Home() {
       console.error("Erro ao pesquisar receita:", err);
     }
   }
+
 
   const conteudoParaExibir = resultadoPesquisa || resposta;
 
@@ -189,7 +193,14 @@ function Home() {
         <Hello name="!" />
         <ParametersChips params={ingredientes} onRemove={removerIngrediente} />
         
-        {conteudoParaExibir && (
+        {errorMessage && (
+          <div className="flex items-center gap-2 text-sm bg-red-100 text-red-700 rounded-xl shadow p-4">
+            <ExclamationCircleIcon className="h-5 w-5 flex-shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {conteudoParaExibir && !errorMessage && (
           <div className="text-sm whitespace-pre-line bg-white rounded-xl shadow p-4 max-h-96 overflow-y-auto">
             <ReactMarkdown>{conteudoParaExibir}</ReactMarkdown>
           </div>
