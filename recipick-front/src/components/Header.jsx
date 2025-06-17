@@ -1,15 +1,21 @@
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
+import logo from "../assets/logo.svg";
 
-export function Header() {
+export function Header({ onSettingsClick }) { 
   return (
     <header className="flex w-full items-center justify-between py-4 pt-14">
       <Link to="/">
-        <img src="/logo.svg" />
+        <img src={logo} alt="ReciPick Logo" />
       </Link>
-      <Link to="/settings" className="cursor-pointer">
+      
+      {/* Botão de configurações com o novo efeito hover */}
+      <button 
+        onClick={onSettingsClick} 
+        className="cursor-pointer p-2 -mr-2 rounded-full hover:bg-solid transition-colors duration-200"
+      >
         <Cog6ToothIcon className="h-6 w-6 text-black" />
-      </Link>
+      </button>
     </header>
   );
 }

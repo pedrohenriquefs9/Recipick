@@ -1,69 +1,200 @@
-
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Header } from "./components/Header";
 import { Hello } from "./components/Hello";
 import { ParametersChips } from "./components/ParametersChips";
 import { MessageInput } from "./MessageInput";
+import { SettingsModal } from "./components/SettingsModal";
 import ReactMarkdown from "react-markdown";
+
+const defaultSettings = {
+  portionSize: 'medio',
+  complexity: 'rapida',
+  style: 'criativo',
+  isVegetarian: false,
+  restrictions: '',
+};
 
 function Home() {
   const [ingredientes, setIngredientes] = useState([]);
+  const [ingredientesSalvos, setIngredientesSalvos] = useState([]);
   const [resposta, setResposta] = useState("");
+  const [resultadoPesquisa, setResultadoPesquisa] = useState(null);
+  const [settings, setSettings] = useState(defaultSettings);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isNormalizing, setIsNormalizing] = useState(false); // Estado de carregamento
+  const latestRequestRef = useRef(0);
 
-  function adicionarIngrediente(novo) {
-    if (!ingredientes.includes(novo.toLowerCase())) {
-      const atualizados = [...ingredientes, novo.toLowerCase()];
-      setIngredientes(atualizados);
-      enviarIngredientes(atualizados);
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem('recipeSettings');
+      if (savedSettings) {
+        setSettings(JSON.parse(savedSettings));
+      }
+    } catch (error) {
+      console.error("Falha ao carregar configurações do localStorage:", error);
     }
-  }
-
-  function limparIngredientes() {
-    setIngredientes([]);
-  }
-
-  function removerIngrediente(index) {
-  const novos = [...ingredientes];
-  novos.splice(index, 1);
-  setIngredientes(novos);
-
-  if (novos.length === 0) {
-    setResposta("");
-  } else {
-    enviarIngredientes(novos);
-  }
-}
-
-  async function enviarIngredientes(lista) {
+  }, []);
+  
+  const enviarIngredientes = useCallback(async (lista) => {
+    latestRequestRef.current += 1;
+    const requestId = latestRequestRef.current;
+    
     try {
       const response = await fetch("http://localhost:5000/api/receitas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingredientes: lista.join(", ") }),
+        body: JSON.stringify({ 
+          ingredientes: lista.join(", "),
+          settings: settings
+        }),
       });
       const data = await response.json();
-      setResposta(data.receitas);
+
+      if (requestId === latestRequestRef.current) {
+        setResposta(data.receitas);
+      }
     } catch (err) {
       console.error("Erro ao buscar sugestões:", err);
     }
+  }, [settings]);
+
+  useEffect(() => {
+    if (ingredientes.length > 0) {
+      enviarIngredientes(ingredientes);
+    }
+  }, [settings, enviarIngredientes]);
+
+  function handleSettingsChange(changedSetting) {
+    const newSettings = { ...settings, ...changedSetting };
+    setSettings(newSettings);
+    localStorage.setItem('recipeSettings', JSON.stringify(newSettings));
   }
+
+  async function adicionarIngredientes(textoInput) {
+    const ingredientesPotenciais = textoInput
+      .split(/,|\s+e\s+/)
+      .map(ing => ing.trim())
+      .filter(ing => ing.length > 0);
+
+    if (ingredientesPotenciais.length === 0) return;
+
+    setIsNormalizing(true);
+    setResultadoPesquisa(null);
+
+    try {
+      const response = await fetch("http://localhost:5000/api/normalizar-ingredientes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ingredientes: ingredientesPotenciais }),
+      });
+      const data = await response.json();
+      
+      const ingredientesValidos = data.ingredientes_normalizados
+        .map(ing => ing.toLowerCase())
+        .filter(ing => ing && !ingredientes.includes(ing));
+      
+      const ingredientesUnicos = [...new Set(ingredientesValidos)];
+
+      if (ingredientesUnicos.length > 0) {
+        const listaFinalAtualizada = [...ingredientes, ...ingredientesUnicos];
+        setIngredientes(listaFinalAtualizada);
+        enviarIngredientes(listaFinalAtualizada);
+      }
+
+    } catch (error) {
+      console.error("Erro ao normalizar ingredientes:", error);
+    } finally {
+      setIsNormalizing(false);
+    }
+  }
+
+  function removerIngrediente(index) {
+    setResultadoPesquisa(null);
+    const novos = [...ingredientes];
+    novos.splice(index, 1);
+    setIngredientes(novos);
+
+    if (novos.length === 0) {
+      latestRequestRef.current += 1;
+      setResposta("");
+    } else {
+      enviarIngredientes(novos);
+    }
+  }
+  
+  function entrarModoPesquisa() {
+    latestRequestRef.current += 1;
+    setIngredientesSalvos(ingredientes);
+    setIngredientes([]);
+    setResposta("");
+    setResultadoPesquisa(null);
+  }
+
+  function sairModoPesquisa() {
+    setIngredientes(ingredientesSalvos);
+    if (ingredientesSalvos.length > 0) {
+      // Não gera receita ao sair do modo pesquisa, apenas restaura
+    }
+    setIngredientesSalvos([]);
+  }
+
+  function limparTudo() {
+    latestRequestRef.current += 1;
+    setIngredientes([]);
+    setResposta("");
+    setIngredientesSalvos([]);
+    setResultadoPesquisa(null);
+  }
+
+  async function buscarReceitaPorNome(nome) {
+    try {
+      const response = await fetch("http://localhost:5000/api/pesquisar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          nome_receita: nome,
+          settings: settings
+        }),
+      });
+      const data = await response.json();
+      setResultadoPesquisa(data.receita);
+    } catch (err) {
+      console.error("Erro ao pesquisar receita:", err);
+    }
+  }
+
+  const conteudoParaExibir = resultadoPesquisa || resposta;
 
   return (
     <div className="flex flex-col h-screen w-full items-center px-4 py-8 overflow-hidden">
-      <Header />
+      {isSettingsOpen && (
+        <SettingsModal 
+          settings={settings}
+          onSettingsChange={handleSettingsChange}
+          onClose={() => setIsSettingsOpen(false)} 
+        />
+      )}
+
+      <Header onSettingsClick={() => setIsSettingsOpen(true)} />
+      
       <main className="flex w-full max-w-lg grow flex-col gap-2 overflow-y-auto px-1">
-        <Hello />
+        <Hello name="!" />
         <ParametersChips params={ingredientes} onRemove={removerIngrediente} />
-        {resposta && (
+        
+        {conteudoParaExibir && (
           <div className="text-sm whitespace-pre-line bg-white rounded-xl shadow p-4 max-h-96 overflow-y-auto">
-            <ReactMarkdown>{resposta}</ReactMarkdown>
+            <ReactMarkdown>{conteudoParaExibir}</ReactMarkdown>
           </div>
         )}
+
         <MessageInput
-          ingredientes={ingredientes}
-          onAdicionarIngrediente={adicionarIngrediente}
+          isNormalizing={isNormalizing}
+          onAdicionarIngredientes={adicionarIngredientes}
+          onLimparTudo={limparTudo}
+          onEntrarModoPesquisa={entrarModoPesquisa}
+          onSairModoPesquisa={sairModoPesquisa}
+          onBuscarReceita={buscarReceitaPorNome}
           onResposta={setResposta}
-          onLimpar={limparIngredientes}
         />
       </main>
     </div>
