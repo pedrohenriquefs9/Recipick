@@ -8,51 +8,78 @@ Este é um projeto full-stack que utiliza **React (frontend)** e **Flask + Gemin
 ## Pré-requisitos
 
 - [Python](https://www.python.org/) (3.8 ou superior)
+- [Node.js](https://nodejs.org/) (22 ou superior)
 - Conta no [Google AI Studio](https://makersuite.google.com/app) com chave da API Gemini
-
-> O `Node.js` só é necessário se você for alterar o frontend e quiser rodar `npm run build`. A versão já compilada está pronta para uso.
 
 ---
 
-## Como rodar localmente (Windows)
+## Executando o projeto
 
 ### 1. Clone o projeto
 
 ```bash
 git clone https://github.com/seu-usuario/recipick.git
-cd recipick/backend
+cd recipick
 ```
 
-### 2. Crie o arquivo `.env`
+### Backend
 
-Dentro da pasta `backend/`, crie um arquivo `.env` com:
-
+```bash
+cd backend
 ```
+
+### 1. Crie o arquivo `.env`
+
+Dentro da pasta `backend/`, duplique o arquivo `.env.example` e renomeie para `.env`. Em seguida, adicione sua chave da API Gemini:
+
+```text
 GEMINI_API_KEY=sua_chave_aqui
 ```
 
----
-
-### 3. Execute o script de inicialização
-
-Ainda dentro da pasta `backend/`, basta executar:
+## 2. Crie e ative um ambiente virtual
 
 ```bash
-start.bat
+python -m venv venv
+source venv/bin/activate  # No Windows use: venv\Scripts\activate
 ```
 
-Este script irá automaticamente:
-- Criar e ativar um ambiente virtual `venv`
-- Instalar as dependências do Python
-- Iniciar o servidor local Flask
+### 3. Instale as dependências
 
----
+```bash
+pip install -r requirements.txt
+```
 
-## Acesse o app
+### 4. Execute o servidor
 
-Abra seu navegador em: [http://localhost:5000](http://localhost:5000)
+```bash
+python app.py
+```
 
----
+### Frontend
+
+```bash
+cd frontend
+```
+
+### 1. Instale as dependências
+
+```bash
+npm install
+```
+
+### 2. Execute o servidor
+
+```bash
+npm start
+```
+
+### Acessando a aplicação
+
+Abra seu navegador e acesse:
+
+```text
+http://localhost:5173
+```
 
 ## Funcionalidades
 
@@ -63,16 +90,13 @@ Abra seu navegador em: [http://localhost:5000](http://localhost:5000)
 - Formatação limpa com markdown (negrito, listas)
 - Busca por nome de receitas via chatbot
 
----
-
-## Não versionar os seguintes arquivos:
-
-- `backend/.env`
-- `backend/venv/`
-- `frontend/node_modules/`
-
----
-
 ## Licença
 
-Este projeto é acadêmico/demonstrativo, sem fins lucrativos.
+O ReciPick é licenciado sob a licença [MIT](LICENSE).
+
+## Contribuição
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests. Consulte o arquivo [CONTRIBUTING.md](CONTRIBUTING.md) para mais detalhes sobre como contribuir.
+
+---
+Desenvolvido por estudantes do CIn - Centro de Informática da UFPE.
