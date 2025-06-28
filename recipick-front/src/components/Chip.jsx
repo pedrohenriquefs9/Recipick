@@ -1,15 +1,16 @@
+import { XMarkIcon } from "@heroicons/react/16/solid";
 
-export function Chip({ text, onRemove }) {
+export function Chip({ children, removable = false }) {
   return (
-    <span className="inline-flex items-center bg-gray-200 text-sm text-gray-800 px-3 py-1 rounded-full mr-2 mb-2">
-      {text}
-      <button
-        onClick={onRemove}
-        className="ml-2 text-gray-600 hover:text-red-500 font-bold"
-        aria-label="Remover"
-      >
-        ×
-      </button>
-    </span>
+    <div className="flex gap-2 bg-solid text-black text-xs px-2 py-1 rounded-full">
+      <span>
+        {children}
+      </span>
+      {removable && (
+        <button className="cursor-pointer">
+          <XMarkIcon className="h-4 w-4 teext-black" />
+        </button>
+      )}
+    </div>
   );
 }
