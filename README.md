@@ -7,10 +7,13 @@ Este é um projeto full-stack que utiliza **React (frontend)** e **Flask + Gemin
 
 ## Pré-requisitos
 
-- [Python](https://www.python.org/) (3.8 ou superior)
-- Conta no [Google AI Studio](https://makersuite.google.com/app) com chave da API Gemini
+Antes de começar, garanta que você tenha os seguintes softwares instalados na sua máquina:
 
-> O `Node.js` só é necessário se você for alterar o frontend e quiser rodar `npm run build`. A versão já compilada está pronta para uso.
+Python (versão 3.8 ou superior)
+
+Node.js (versão 18 ou superior, que inclui o npm)
+
+Git
 
 ---
 
@@ -35,6 +38,8 @@ GEMINI_API_KEY=sua_chave_aqui
 
 ### 3. Execute o script de inicialização
 
+Mova o requirements.txt: Se o arquivo requirements.txt estiver na raiz do projeto, mova-o para dentro da pasta backend/
+
 Ainda dentro da pasta `backend/`, basta executar:
 
 ```bash
@@ -45,6 +50,28 @@ Este script irá automaticamente:
 - Criar e ativar um ambiente virtual `venv`
 - Instalar as dependências do Python
 - Iniciar o servidor local Flask
+
+---
+
+### 4. Configure o Frontend (Aplicação React)
+
+Navegue até a pasta do frontend: A partir da raiz do projeto, execute:
+
+```
+cd recipick-front
+```
+
+Instale as Dependências (npm install): Este comando é como a "lista de compras" do seu projeto. Ele lê o package.json e baixa todas as bibliotecas que o React precisa para funcionar.
+
+```
+npm install
+```
+
+Gere a Versão de Produção (npm run build): Este comando é como "assar o bolo". Ele pega todo o seu código React e o compila em uma pasta dist/ otimizada, que é a versão final do seu site que o servidor Flask irá usar.
+
+```
+npm run build
+```
 
 ---
 
