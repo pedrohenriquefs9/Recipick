@@ -23,6 +23,7 @@ export function MessageInput({
       >
         <button
           type="button"
+          aria-label="Attach photo"
           className="flex flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-solid p-1 h-12 w-12"
         >
           <CameraIcon className="text-black w-7 h-7" />
