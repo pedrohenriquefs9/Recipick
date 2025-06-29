@@ -1,0 +1,14 @@
+# Define o comportamento padrão para todos os arquivos
+* text=auto eol=lf
+
+# Força o uso de LF (padrão Linux/Mac) para os tipos de arquivo mais comuns do seu projeto
+# Isso garante consistência máxima em qualquer sistema operacional
+*.js text eol=lf
+*.jsx text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.html text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
