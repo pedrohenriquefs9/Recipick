@@ -30,10 +30,11 @@ cd backend
 
 ### 1. Crie o arquivo `.env`
 
-Dentro da pasta `backend/`, duplique o arquivo `.env.example` e renomeie para `.env`. Em seguida, adicione sua chave da API Gemini:
+Dentro da pasta `backend/`, duplique o arquivo `.env.example` e renomeie para `.env`. Em seguida, adicione sua chave da API Gemini e as origens permitidas. Por exemplo:
 
 ```text
 GEMINI_API_KEY=sua_chave_aqui
+ALLOWED_ORIGINS=http://localhost:5173
 ```
 
 ## 2. Crie e ative um ambiente virtual

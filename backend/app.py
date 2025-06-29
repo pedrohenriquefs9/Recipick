@@ -12,7 +12,14 @@ modelo = genai.GenerativeModel("gemini-1.5-flash")
 
 DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
 app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
-CORS(app)
+
+# CORS configuration
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+CORS(app,
+     origins=allowed_origins,
+     allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     supports_credentials=True)
 
 def construir_prompt_com_settings(base_prompt, settings):
     if not settings:
@@ -25,13 +32,13 @@ def construir_prompt_com_settings(base_prompt, settings):
 
     instrucoes_adicionais.append(f"- A receita deve ser para {portion_map.get(settings.get('portionSize'), 'uma porção média')}.")
     instrucoes_adicionais.append(f"- Deve ser {complexity_map.get(settings.get('complexity'), 'rápida e simples')}.")
-    
+
     estilo_selecionado = style_map.get(settings.get('style'), 'criativa e inusitada')
     instrucoes_adicionais.append(f"- O estilo da receita DEVE ser: {estilo_selecionado}.")
 
     if settings.get('isVegetarian'):
         instrucoes_adicionais.append("- A receita DEVE ser estritamente vegetariana (sem nenhum tipo de carne, incluindo peixes e frutos do mar).")
-    
+
     restrictions = settings.get('restrictions')
     if restrictions and restrictions.strip():
         instrucoes_adicionais.append(f"- A receita NÃO PODE conter os seguintes ingredientes sob nenhuma hipótese: {restrictions.strip()}.")
@@ -39,8 +46,17 @@ def construir_prompt_com_settings(base_prompt, settings):
     if instrucoes_adicionais:
       prompt_final = f"{base_prompt}\n\nLeve em consideração também as seguintes preferências do usuário ao gerar as receitas:\n" + "\n".join(instrucoes_adicionais)
       return prompt_final
-    
+
     return base_prompt
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify({})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add('Access-Control-Allow-Headers', "*")
+        response.headers.add('Access-Control-Allow-Methods', "*")
+        return response
 
 @app.route("/api/normalizar-ingredientes", methods=["POST"])
 def normalizar_ingredientes():
@@ -56,7 +72,7 @@ def normalizar_ingredientes():
     2. Padronize o nome (ex: "Tomate italiano maduro" -> "tomate").
     3. Se um item não for um ingrediente, retorne uma string vazia "".
     4. Sua resposta deve ser APENAS uma string JSON válida representando uma lista de strings. Não inclua markdown, explicações ou qualquer outro texto.
-    
+
     Exemplo de Entrada: ["feijaox", "cebola roxa", "Qeijo", "asdfgh"]
     Sua Saída: ["feijão", "cebola roxa", "queijo", ""]
     ---
@@ -66,10 +82,10 @@ def normalizar_ingredientes():
     try:
         resposta = modelo.generate_content(prompt)
         lista_str = resposta.text.strip().replace("`", "").replace("json", "").strip()
-        
+
         # CORREÇÃO: Trocando o frágil eval() pelo robusto json.loads()
         lista_normalizada = json.loads(lista_str)
-        
+
         return jsonify({"ingredientes_normalizados": lista_normalizada})
     except Exception as e:
         print(f"Erro ao normalizar/parsear JSON da IA: {e}")
@@ -81,7 +97,7 @@ def gerar_receitas():
     data = request.json
     ingredientes = data.get("ingredientes", "").strip()
     settings = data.get("settings", {})
-    
+
     if not ingredientes:
         return jsonify({"erro": "Nenhum ingrediente informado."}), 400
 
@@ -115,7 +131,7 @@ Formato obrigatório:
 - Use apenas **markdown puro** (sem emojis).
 - Separe visualmente apenas com `---`.
 """
-    
+
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
     resposta = modelo.generate_content(prompt_final)
     return jsonify({"receitas": resposta.text})
@@ -125,12 +141,12 @@ def pesquisar_receita():
     data = request.json
     nome_receita = data.get("nome_receita", "").strip()
     settings = data.get("settings", {})
-    
+
     if not nome_receita:
         return jsonify({"erro": "Nome da receita não informado."}), 400
 
     prompt_base = f"""Quero a receita de: {nome_receita}. Apresente de forma clara, usando markdown."""
-    
+
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
     resposta = modelo.generate_content(prompt_final)
     return jsonify({"receita": resposta.text})

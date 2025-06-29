@@ -20,10 +20,11 @@ To get started with the ReciPick backend, follow these steps:
    ```
 
 3. **Create the `.env` file**:
-    Inside the `backend/` directory, duplicate the file `.env.example` and rename it to `.env`. Then, add your Gemini API key:
+    Inside the `backend/` directory, duplicate the file `.env.example` and rename it to `.env`. Then, add your Gemini API key and allowed origins. For example:
 
     ```text
     GEMINI_API_KEY=your_api_key_here
+    ALLOWED_ORIGINS=http://localhost:5173
     ```
 
 4. **Start the development server**:
