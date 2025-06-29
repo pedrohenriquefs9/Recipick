@@ -1,4 +1,4 @@
-# ReciPick (Backedn)
+# ReciPick (Backend)
 
 This is the backend for ReciPick, a recipe management application.
 
