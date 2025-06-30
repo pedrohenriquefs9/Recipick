@@ -19,10 +19,17 @@ To get started with the ReciPick frontend, follow these steps:
    npm install
    ```
 
-3. **Start the development server**:
+3. **Create the `.env` file**:
+   Inside the `recipick-front/` directory, duplicate the file `.env.example` and rename it to `.env`. Then, add your API URL. For example:
+
+   ```text
+   VITE_API_URL=http://localhost:5000/api
+   ```
+
+4. **Start the development server**:
 
    ```bash
    npm run dev
    ```
 
-4. **Open your browser** and navigate to `http://localhost:5173` to see the application in action.
+5. **Open your browser** and navigate to `http://localhost:5173` to see the application in action.

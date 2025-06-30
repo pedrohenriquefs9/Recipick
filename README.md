@@ -68,10 +68,17 @@ cd frontend
 npm install
 ```
 
-### 2. Execute o servidor
+### 2. Crie o arquivo `.env`
+Dentro da pasta `recipick-front/`, duplique o arquivo `.env.example` e renomeie para `.env`. Em seguida, adicione a URL da API. Por exemplo:
+
+```text
+VITE_API_URL=http://localhost:5000/api
+```
+
+### 3. Execute o servidor de desenvolvimento
 
 ```bash
-npm start
+npm run dev
 ```
 
 ### Acessando a aplicação
