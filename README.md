@@ -7,79 +7,80 @@ Este é um projeto full-stack que utiliza **React (frontend)** e **Flask + Gemin
 
 ## Pré-requisitos
 
-Antes de começar, garanta que você tenha os seguintes softwares instalados na sua máquina:
-
-Python (versão 3.8 ou superior)
-
-Node.js (versão 18 ou superior, que inclui o npm)
-
-Git
+- [Python](https://www.python.org/) (3.8 ou superior)
+- [Node.js](https://nodejs.org/) (22 ou superior)
+- Conta no [Google AI Studio](https://makersuite.google.com/app) com chave da API Gemini
 
 ---
 
-## Como rodar localmente (Windows)
+## Executando o projeto
 
 ### 1. Clone o projeto
 
 ```bash
 git clone https://github.com/seu-usuario/recipick.git
-cd recipick/backend
+cd recipick
 ```
 
-### 2. Crie o arquivo `.env`
-
-Dentro da pasta `backend/`, crie um arquivo `.env` com:
-
-```
-GEMINI_API_KEY=sua_chave_aqui
-```
-
----
-
-### 3. Execute o script de inicialização
-
-Mova o requirements.txt: Se o arquivo requirements.txt estiver na raiz do projeto, mova-o para dentro da pasta backend/
-
-Ainda dentro da pasta `backend/`, basta executar:
+### Backend
 
 ```bash
-start.bat
+cd backend
 ```
 
-Este script irá automaticamente:
-- Criar e ativar um ambiente virtual `venv`
-- Instalar as dependências do Python
-- Iniciar o servidor local Flask
+### 1. Crie o arquivo `.env`
 
----
+Dentro da pasta `backend/`, duplique o arquivo `.env.example` e renomeie para `.env`. Em seguida, adicione sua chave da API Gemini e as origens permitidas. Por exemplo:
 
-### 4. Configure o Frontend (Aplicação React)
-
-Navegue até a pasta do frontend: A partir da raiz do projeto, execute:
-
-```
-cd recipick-front
+```text
+GEMINI_API_KEY=sua_chave_aqui
+ALLOWED_ORIGINS=http://localhost:5173
 ```
 
-Instale as Dependências (npm install): Este comando é como a "lista de compras" do seu projeto. Ele lê o package.json e baixa todas as bibliotecas que o React precisa para funcionar.
+## 2. Crie e ative um ambiente virtual
 
+```bash
+python -m venv venv
+source venv/bin/activate  # No Windows use: venv\Scripts\activate
 ```
+
+### 3. Instale as dependências
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Execute o servidor
+
+```bash
+python app.py
+```
+
+### Frontend
+
+```bash
+cd frontend
+```
+
+### 1. Instale as dependências
+
+```bash
 npm install
 ```
 
-Gere a Versão de Produção (npm run build): Este comando é como "assar o bolo". Ele pega todo o seu código React e o compila em uma pasta dist/ otimizada, que é a versão final do seu site que o servidor Flask irá usar.
+### 2. Execute o servidor
 
+```bash
+npm start
 ```
-npm run build
+
+### Acessando a aplicação
+
+Abra seu navegador e acesse:
+
+```text
+http://localhost:5173
 ```
-
----
-
-## Acesse o app
-
-Abra seu navegador em: [http://localhost:5000](http://localhost:5000)
-
----
 
 ## Funcionalidades
 
@@ -90,16 +91,13 @@ Abra seu navegador em: [http://localhost:5000](http://localhost:5000)
 - Formatação limpa com markdown (negrito, listas)
 - Busca por nome de receitas via chatbot
 
----
-
-## Não versionar os seguintes arquivos:
-
-- `backend/.env`
-- `backend/venv/`
-- `frontend/node_modules/`
-
----
-
 ## Licença
 
-Este projeto é acadêmico/demonstrativo, sem fins lucrativos.
+O ReciPick é licenciado sob a licença [MIT](LICENSE).
+
+## Contribuição
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests. Consulte o arquivo [CONTRIBUTING.md](CONTRIBUTING.md) para mais detalhes sobre como contribuir.
+
+---
+Desenvolvido por estudantes do CIn - Centro de Informática da UFPE.

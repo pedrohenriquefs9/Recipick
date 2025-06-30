@@ -1,223 +1,127 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Header } from "./components/Header";
 import { Hello } from "./components/Hello";
 import { ParametersChips } from "./components/ParametersChips";
 import { MessageInput } from "./MessageInput";
-import { SettingsModal } from "./components/SettingsModal";
-import ReactMarkdown from "react-markdown";
-import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import { PrimaryButton } from "./components/PrimaryButton";
+import { api } from "./api";
+import { AIMessage } from "./components/AIMessage";
 
-const defaultSettings = {
-  portionSize: 'medio',
-  complexity: 'rapida',
-  style: 'criativo',
-  isVegetarian: false,
-  restrictions: '',
-};
+export function Home() {
+  const [ingredients, setIngredients] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-function Home() {
-  const [ingredientes, setIngredientes] = useState([]);
-  const [ingredientesSalvos, setIngredientesSalvos] = useState([]);
-  const [resposta, setResposta] = useState("");
-  const [resultadoPesquisa, setResultadoPesquisa] = useState(null);
-  const [settings, setSettings] = useState(defaultSettings);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isNormalizing, setIsNormalizing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const latestRequestRef = useRef(0);
-
-  useEffect(() => {
-    try {
-      const savedSettings = localStorage.getItem('recipeSettings');
-      if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
-      }
-    } catch (error) {
-      console.error("Falha ao carregar configurações do localStorage:", error);
+  async function handleGenerateRecipes() {
+    if (ingredients.length === 0) {
+      return;
     }
-  }, []);
-  
-  const enviarIngredientes = useCallback(async (lista) => {
-    latestRequestRef.current += 1;
-    const requestId = latestRequestRef.current;
-    
     try {
-      const response = await fetch("/api/receitas", { // Caminho relativo
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          ingredientes: lista.join(", "),
-          settings: settings
-        }),
+      setIsLoading(true);
+      // TODO: It don't make sense to make an extra request to normalize ingredients
+      // We can just send the ingredients directly to the recipe generation endpoint
+      const { data } = await api.post("/normalizar-ingredientes", {
+        ingredientes: ingredients,
       });
-      const data = await response.json();
-
-      if (requestId === latestRequestRef.current) {
-        setResposta(data.receitas);
-      }
-    } catch (err) {
-      console.error("Erro ao buscar sugestões:", err);
-    }
-  }, [settings]);
-
-  useEffect(() => {
-    if (ingredientes.length > 0 && ingredientesSalvos.length === 0) {
-      enviarIngredientes(ingredientes);
-    }
-  }, [settings, ingredientes, ingredientesSalvos, enviarIngredientes]);
-
-  function handleSettingsChange(changedSetting) {
-    const newSettings = { ...settings, ...changedSetting };
-    setSettings(newSettings);
-    localStorage.setItem('recipeSettings', JSON.stringify(newSettings));
-  }
-
-  async function adicionarIngredientes(textoInput) {
-    setIsNormalizing(true);
-    setResultadoPesquisa(null);
-    setErrorMessage("");
-
-    const ingredientesPotenciais = textoInput
-      .split(/,|\s+e\s+/)
-      .map(ing => ing.trim())
-      .filter(ing => ing.length > 0);
-
-    if (ingredientesPotenciais.length === 0) {
-        setIsNormalizing(false);
-        return;
-    };
-
-    try {
-      // CORREÇÃO: Trocando a URL hardcoded por um caminho relativo
-      const response = await fetch("/api/normalizar-ingredientes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingredientes: ingredientesPotenciais }),
+      const response = await api.post("/receitas", {
+        ingredientes: data.ingredientes_normalizados
+          .filter((ingredient) => ingredient.trim() !== "")
+          .join(", "),
       });
 
-      if (!response.ok) {
-        throw new Error(`Erro de rede: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      const ingredientesValidos = data.ingredientes_normalizados
-        .map(ing => ing.toLowerCase())
-        .filter(ing => ing && !ingredientes.includes(ing));
-      
-      const ingredientesUnicos = [...new Set(ingredientesValidos)];
-
-      if (ingredientesUnicos.length > 0) {
-        const listaFinalAtualizada = [...ingredientes, ...ingredientesUnicos];
-        setIngredientes(listaFinalAtualizada);
-        enviarIngredientes(listaFinalAtualizada);
-      }
-
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: response.data.receitas,
+        },
+      ]);
     } catch (error) {
       console.error("Erro ao normalizar ingredientes:", error);
-      setErrorMessage("Ocorreu uma falha ao conectar. Por favor, aguarde um instante e tente novamente.");
+      alert("Ocorreu um erro ao processar os ingredientes. Tente novamente.");
     } finally {
-      setIsNormalizing(false);
+      setIsLoading(false);
     }
   }
 
-  // ... (resto das funções como removerIngrediente, limparTudo, etc.)
-  function removerIngrediente(index) {
-    setResultadoPesquisa(null);
-    const novos = [...ingredientes];
-    novos.splice(index, 1);
-    setIngredientes(novos);
+  function handleAddIngredient(newIngredient) {
+    setIngredients((prev) => [...prev, newIngredient]);
+  }
 
-    if (novos.length === 0) {
-      latestRequestRef.current += 1;
-      setResposta("");
+  function handleRefineRecipes(message) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: message,
+      },
+    ]);
+
+    console.log("Refinando receitas com a mensagem:", message);
+  }
+
+  function handleOnSend(message) {
+    if (messages.length === 0) {
+      handleAddIngredient(message);
     } else {
-      enviarIngredientes(novos);
+      handleRefineRecipes(message);
     }
   }
-  
-  function entrarModoPesquisa() {
-    latestRequestRef.current += 1;
-    setIngredientesSalvos(ingredientes);
-    setIngredientes([]);
-    setResposta("");
-    setResultadoPesquisa(null);
-  }
-
-  function sairModoPesquisa() {
-    setIngredientes(ingredientesSalvos);
-    setIngredientesSalvos([]);
-  }
-
-  function limparTudo() {
-    latestRequestRef.current += 1;
-    setIngredientes([]);
-    setResposta("");
-    setIngredientesSalvos([]);
-    setResultadoPesquisa(null);
-  }
-
-  async function buscarReceitaPorNome(nome) {
-    try {
-      const response = await fetch("/api/pesquisar", { // Caminho relativo
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          nome_receita: nome,
-          settings: settings
-        }),
-      });
-      const data = await response.json();
-      setResultadoPesquisa(data.receita);
-    } catch (err) {
-      console.error("Erro ao pesquisar receita:", err);
-    }
-  }
-
-
-  const conteudoParaExibir = resultadoPesquisa || resposta;
 
   return (
-    <div className="flex flex-col h-screen w-full items-center px-4 py-8 overflow-hidden">
-      {isSettingsOpen && (
-        <SettingsModal 
-          settings={settings}
-          onSettingsChange={handleSettingsChange}
-          onClose={() => setIsSettingsOpen(false)} 
-        />
-      )}
-
-      <Header onSettingsClick={() => setIsSettingsOpen(true)} />
-      
-      <main className="flex w-full max-w-lg grow flex-col gap-2 overflow-y-auto px-1">
-        <Hello name="!" />
-        <ParametersChips params={ingredientes} onRemove={removerIngrediente} />
-        
-        {errorMessage && (
-          <div className="flex items-center gap-2 text-sm bg-red-100 text-red-700 rounded-xl shadow p-4">
-            <ExclamationCircleIcon className="h-5 w-5 flex-shrink-0" />
-            <span>{errorMessage}</span>
+    <div className="flex flex-col items-center justify-between bg-bg px-4 h-dvh">
+      <Header />
+      <main className="flex flex-col items-center h-full mb-6">
+        <div className="h-full flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <Hello name="João" />
+            <ParametersChips
+              params={ingredients}
+              editable={true}
+              onRemove={(index) => {
+                setIngredients((prev) => prev.filter((_, i) => i !== index));
+              }}
+            />
           </div>
-        )}
+        </div>
+        <div className="flex flex-col items-start justify-center w-full max-w-2xl mt-6">
+          {(messages.length > 0 || isLoading) && (
 
-        {conteudoParaExibir && !errorMessage && (
-          <div className="text-sm whitespace-pre-line bg-white rounded-xl shadow p-4 max-h-96 overflow-y-auto">
-            <ReactMarkdown>{conteudoParaExibir}</ReactMarkdown>
-          </div>
-        )}
-
-        <MessageInput
-          isNormalizing={isNormalizing}
-          onAdicionarIngredientes={adicionarIngredientes}
-          onLimparTudo={limparTudo}
-          onEntrarModoPesquisa={entrarModoPesquisa}
-          onSairModoPesquisa={sairModoPesquisa}
-          onBuscarReceita={buscarReceitaPorNome}
-          onResposta={setResposta}
-        />
+              <div className="flex flex-col items-start justify-center gap-4 mt-6">
+                {messages.map((message, index) =>
+                  message.role == "assistant" ? (
+                    <AIMessage key={index} message={message.content} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-2 bg-blue-50 text-black rounded-xl shadow-md text-sm">
+                      {message.content}
+                    </div>
+                  )
+                )}
+                {isLoading && (
+                  <div className="flex items-center justify-center w-full h-12">
+                    <div className="rounded-full h-4 w-4 bg-solid animate-ping"></div>
+                  </div>
+                )}
+              </div>
+            )}
+        </div>
+        <div className="flex flex-col items-end justify-center gap-4 w-full mt-6">
+          {ingredients.length > 0 && messages.length == 0 && !isLoading && (
+            <PrimaryButton onClick={handleGenerateRecipes}>
+              Continuar
+            </PrimaryButton>
+          )}
+          <MessageInput
+            placeholder={
+              messages.length == 0
+                ? "Digite um ingrediente ou preferência"
+                : "O que você acha?"
+            }
+            disabled={isLoading}
+            onSend={handleOnSend}
+          />
+        </div>
       </main>
     </div>
   );
 }
-
-export default Home;
