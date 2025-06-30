@@ -3,7 +3,7 @@ import { Header } from "./components/Header";
 import { Hello } from "./components/Hello";
 import { ParametersChips } from "./components/ParametersChips";
 import { MessageInput } from "./MessageInput";
-import { PrimaryButton } from "./components/PrimaryButton";
+import { Button } from "./components/Button";
 import { api } from "./api";
 import { AIMessage } from "./components/AIMessage";
 
@@ -109,9 +109,9 @@ export function Home() {
         </div>
         <div className="flex flex-col items-end justify-center gap-4 w-full mt-6">
           {ingredients.length > 0 && messages.length == 0 && !isLoading && (
-            <PrimaryButton onClick={handleGenerateRecipes}>
+            <Button onClick={handleGenerateRecipes}>
               Continuar
-            </PrimaryButton>
+            </Button>
           )}
           <MessageInput
             placeholder={
