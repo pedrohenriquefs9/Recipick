@@ -45,6 +45,9 @@ export function Home() {
   }
 
   function handleAddIngredient(newIngredient) {
+    if (!newIngredient || newIngredient.trim() === "") {
+      return;
+    }
     setIngredients((prev) => [...prev, newIngredient]);
   }
 
