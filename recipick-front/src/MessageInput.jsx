@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import { PlusIcon } from "@heroicons/react/16/solid";
 import { CameraIcon } from "@heroicons/react/24/outline";
@@ -9,11 +9,25 @@ export function MessageInput({
   disabled = false,
 }) {
   const [inputValue, setInputValue] = useState("");
+  const inputRef = useRef(null);
+
+  // Helper function for focusing the input
+  const focusInput = () => {
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  };
+
+  useEffect(() => {
+    focusInput();
+  }, []);
 
   function handleSubmit(event) {
     event.preventDefault();
     onSend(inputValue.trim());
     setInputValue("");
+    // Keep focus on input after submission
+    focusInput();
   }
   return (
     <div className="flex flex-col items-center justify-center gap-2 w-full">
@@ -30,6 +44,7 @@ export function MessageInput({
         </button>
         <div className="flex justify-between items-center w-full gap-1 text-black bg-solid rounded-full px-3 py-2">
           <input
+            ref={inputRef}
             type="text"
             name="message"
             disabled={disabled}
