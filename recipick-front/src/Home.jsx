@@ -74,7 +74,7 @@ export function Home() {
       <main className="flex flex-col items-center h-full mb-6">
         <div className="h-full flex flex-col items-center justify-center">
           <div className="flex flex-col items-center justify-center gap-4">
-            <Hello name="João" />
+            <Hello />
             <ParametersChips
               params={ingredients}
               editable={true}
@@ -86,24 +86,23 @@ export function Home() {
         </div>
         <div className="flex flex-col items-start justify-center w-full max-w-2xl mt-6">
           {(messages.length > 0 || isLoading) && (
-
-              <div className="flex flex-col items-start justify-center gap-4 mt-6">
-                {messages.map((message, index) =>
-                  message.role == "assistant" ? (
-                    <AIMessage key={index} message={message.content} />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center p-2 bg-blue-50 text-black rounded-xl shadow-md text-sm">
-                      {message.content}
-                    </div>
-                  )
-                )}
-                {isLoading && (
-                  <div className="flex items-center justify-center w-full h-12">
-                    <div className="rounded-full h-4 w-4 bg-solid animate-ping"></div>
+            <div className="flex flex-col items-start justify-center gap-4 mt-6">
+              {messages.map((message, index) =>
+                message.role == "assistant" ? (
+                  <AIMessage key={index} message={message.content} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-2 bg-blue-50 text-black rounded-xl shadow-md text-sm">
+                    {message.content}
                   </div>
-                )}
-              </div>
-            )}
+                )
+              )}
+              {isLoading && (
+                <div className="flex items-center justify-center w-full h-12">
+                  <div className="rounded-full h-4 w-4 bg-solid animate-ping"></div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex flex-col items-end justify-center gap-4 w-full mt-6">
           {ingredients.length > 0 && messages.length == 0 && !isLoading && (
