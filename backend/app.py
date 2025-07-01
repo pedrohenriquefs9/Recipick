@@ -1,19 +1,31 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
-import json # Import já estava aqui, agora vamos usá-lo corretamente
+import json
+import re
+import traceback # Import para log de erro detalhado
 from dotenv import load_dotenv
 import google.generativeai as genai
 
+# Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
+
+# --- Verificação da Chave de API ---
+if not api_key:
+    raise ValueError("A variável de ambiente GEMINI_API_KEY não foi definida. Por favor, crie um arquivo .env e adicione sua chave.")
+
 genai.configure(api_key=api_key)
+
+# Configura o modelo de IA e a configuração para forçar a saída JSON
+generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
 modelo = genai.GenerativeModel("gemini-1.5-flash")
 
+# Define a pasta de build do frontend para servir os arquivos estáticos
 DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
 app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
 
-# CORS configuration
+# Configuração do CORS para permitir requisições do frontend
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 CORS(app,
      origins=allowed_origins,
@@ -22,19 +34,16 @@ CORS(app,
      supports_credentials=True)
 
 def construir_prompt_com_settings(base_prompt, settings):
+    """Adiciona as configurações do usuário ao prompt base."""
     if not settings:
         return base_prompt
 
     instrucoes_adicionais = []
     portion_map = { 'pequeno': 'uma porção pequena (individual)', 'medio': 'uma porção média (2 pessoas)', 'grande': 'uma porção grande (4+ pessoas)'}
     complexity_map = { 'rapida': 'uma receita rápida e simples (até 30 min)', 'elaborada': 'uma receita mais elaborada e detalhada' }
-    style_map = { 'popular': 'popular e clássica', 'criativo': 'criativa e inusitada' }
 
     instrucoes_adicionais.append(f"- A receita deve ser para {portion_map.get(settings.get('portionSize'), 'uma porção média')}.")
     instrucoes_adicionais.append(f"- Deve ser {complexity_map.get(settings.get('complexity'), 'rápida e simples')}.")
-
-    estilo_selecionado = style_map.get(settings.get('style'), 'criativa e inusitada')
-    instrucoes_adicionais.append(f"- O estilo da receita DEVE ser: {estilo_selecionado}.")
 
     if settings.get('isVegetarian'):
         instrucoes_adicionais.append("- A receita DEVE ser estritamente vegetariana (sem nenhum tipo de carne, incluindo peixes e frutos do mar).")
@@ -51,6 +60,7 @@ def construir_prompt_com_settings(base_prompt, settings):
 
 @app.before_request
 def handle_preflight():
+    """Lida com as requisições OPTIONS (preflight) do CORS."""
     if request.method == "OPTIONS":
         response = jsonify({})
         response.headers.add("Access-Control-Allow-Origin", "*")
@@ -60,6 +70,7 @@ def handle_preflight():
 
 @app.route("/api/normalizar-ingredientes", methods=["POST"])
 def normalizar_ingredientes():
+    """Normaliza e corrige uma lista de ingredientes usando a IA."""
     data = request.json
     ingredientes_brutos = data.get("ingredientes", [])
     if not ingredientes_brutos:
@@ -71,29 +82,29 @@ def normalizar_ingredientes():
     1. Corrija erros (ex: "feijaox" -> "feijão").
     2. Padronize o nome (ex: "Tomate italiano maduro" -> "tomate").
     3. Se um item não for um ingrediente, retorne uma string vazia "".
-    4. Sua resposta deve ser APENAS uma string JSON válida representando uma lista de strings. Não inclua markdown, explicações ou qualquer outro texto.
+    4. Sua resposta deve ser APENAS um objeto JSON com a chave "ingredientes_normalizados", que contém uma lista de strings.
 
     Exemplo de Entrada: ["feijaox", "cebola roxa", "Qeijo", "asdfgh"]
-    Sua Saída: ["feijão", "cebola roxa", "queijo", ""]
+    Sua Saída: {{"ingredientes_normalizados": ["feijão", "cebola roxa", "queijo", ""]}}
     ---
     Lista de ingredientes para normalizar: {json.dumps(ingredientes_brutos)}
     """
 
     try:
-        resposta = modelo.generate_content(prompt)
-        lista_str = resposta.text.strip().replace("`", "").replace("json", "").strip()
-
-        # CORREÇÃO: Trocando o frágil eval() pelo robusto json.loads()
-        lista_normalizada = json.loads(lista_str)
-
-        return jsonify({"ingredientes_normalizados": lista_normalizada})
+        resposta = modelo.generate_content(prompt, generation_config=generation_config)
+        dados_normalizados = json.loads(resposta.text)
+        return jsonify(dados_normalizados)
     except Exception as e:
-        print(f"Erro ao normalizar/parsear JSON da IA: {e}")
-        # Se falhar, retorna a lista original para o frontend lidar
+        print("--- ERRO NO BACKEND (normalizar-ingredientes) ---")
+        print(f"Erro: {e}")
+        traceback.print_exc()
+        print("--- FIM DO ERRO ---")
+        # Se a IA falhar, retorna a lista original para não quebrar o fluxo
         return jsonify({"ingredientes_normalizados": ingredientes_brutos})
 
 @app.route("/api/receitas", methods=["POST"])
 def gerar_receitas():
+    """Gera uma lista de receitas em formato JSON estruturado."""
     data = request.json
     ingredientes = data.get("ingredientes", "").strip()
     settings = data.get("settings", {})
@@ -102,42 +113,55 @@ def gerar_receitas():
         return jsonify({"erro": "Nenhum ingrediente informado."}), 400
 
     style = settings.get('style', 'criativo')
+    estilo_desc = "criativas e surpreendentes" if style == 'criativo' else "populares e clássicas"
 
-    if style == 'popular':
-        prompt_base = f"""Você é um assistente de culinária focado em receitas **populares e clássicas**. Com base nos ingredientes: {ingredientes}.
+    prompt_base = f"""
+    Você é um assistente de culinária especialista em gerar dados estruturados.
+    Sua única tarefa é criar receitas em formato JSON.
 
-Tarefa:
-- Sugira 3 receitas **conhecidas e tradicionais** que usem esses ingredientes. Foque no que é familiar e amado pelo público.
-- Corrija e liste os ingredientes informados.
-- Use um modo de preparo claro e direto.
-- Sugira 2 ingredientes extras que combinariam bem com os pratos.
-- Para cada novo ingrediente, sugira 1 nova receita popular.
+    Com base nos ingredientes informados pelo usuário: **{ingredientes}**.
 
-Formato obrigatório:
-- Use apenas **markdown puro** (sem emojis).
-- Separe visualmente apenas com `---`.
-"""
-    else: # Estilo criativo (padrão)
-        prompt_base = f"""Você é um assistente de receitas **criativas e ousadas**. Com base nos ingredientes: {ingredientes}.
+    **Tarefa:**
+    Gere um objeto JSON contendo uma chave "receitas", que é uma lista de 3 receitas **{estilo_desc}**.
 
-Tarefa:
-- Sugira 3 receitas **criativas e surpreendentes** usando os ingredientes informados, incentivando combinações inusitadas.
-- Corrija e liste os ingredientes informados.
-- Use um modo de preparo inspirador.
-- Sugira 2 ingredientes extras que elevariam o nível dos pratos.
-- Para cada novo ingrediente, sugira 1 nova receita criativa.
-
-Formato obrigatório:
-- Use apenas **markdown puro** (sem emojis).
-- Separe visualmente apenas com `---`.
-"""
+    **Estrutura Obrigatória do JSON:**
+    O JSON de saída deve seguir exatamente este schema:
+    {{
+      "receitas": [
+        {{
+          "titulo": "string",
+          "tempoDePreparoEmMin": "integer",
+          "porcoes": "integer",
+          "ingredientes": [
+            {{
+              "nome": "string",
+              "quantidade": "string",
+              "unidadeMedida": "string"
+            }}
+          ],
+          "preparo": ["string"]
+        }}
+      ]
+    }}
+    """
 
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
-    resposta = modelo.generate_content(prompt_final)
-    return jsonify({"receitas": resposta.text})
+
+    try:
+        resposta = modelo.generate_content(prompt_final, generation_config=generation_config)
+        dados_receita = json.loads(resposta.text)
+        return jsonify(dados_receita)
+    except Exception as e:
+        print("--- ERRO NO BACKEND (gerar_receitas) ---")
+        print(f"Erro: {e}")
+        traceback.print_exc()
+        print("--- FIM DO ERRO ---")
+        return jsonify({"erro": "Ocorreu um erro ao gerar as receitas. Tente novamente."}), 500
+
 
 @app.route("/api/pesquisar", methods=["POST"])
 def pesquisar_receita():
+    """Busca uma única receita e a retorna em formato JSON estruturado."""
     data = request.json
     nome_receita = data.get("nome_receita", "").strip()
     settings = data.get("settings", {})
@@ -145,15 +169,46 @@ def pesquisar_receita():
     if not nome_receita:
         return jsonify({"erro": "Nome da receita não informado."}), 400
 
-    prompt_base = f"""Quero a receita de: {nome_receita}. Apresente de forma clara, usando markdown."""
+    prompt_base = f"""
+    Você é um assistente de culinária especialista em gerar dados estruturados.
+    Sua única tarefa é fornecer a receita de "{nome_receita}" em formato JSON.
+
+    **Estrutura Obrigatória do JSON:**
+    O JSON de saída deve seguir exatamente este schema para um único objeto de receita:
+    {{
+      "titulo": "string",
+      "tempoDePreparoEmMin": "integer",
+      "porcoes": "integer",
+      "ingredientes": [
+        {{
+          "nome": "string",
+          "quantidade": "string",
+          "unidadeMedida": "string"
+        }}
+      ],
+      "preparo": ["string"]
+    }}
+    """
 
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
-    resposta = modelo.generate_content(prompt_final)
-    return jsonify({"receita": resposta.text})
 
+    try:
+        resposta = modelo.generate_content(prompt_final, generation_config=generation_config)
+        dados_receita = json.loads(resposta.text)
+        return jsonify({"receitas": [dados_receita]})
+    except Exception as e:
+        print("--- ERRO NO BACKEND (pesquisar_receita) ---")
+        print(f"Erro: {e}")
+        traceback.print_exc()
+        print("--- FIM DO ERRO ---")
+        return jsonify({"erro": "Ocorreu um erro ao pesquisar a receita. Tente novamente."}), 500
+
+
+# Rotas para servir o frontend
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
+    """Serve os arquivos estáticos do frontend."""
     if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     else:
