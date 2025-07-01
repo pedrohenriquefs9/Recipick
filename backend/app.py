@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 import json
 import re
-import traceback # Import para log de erro detalhado
+import traceback
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -99,6 +99,7 @@ def normalizar_ingredientes():
         print(f"Erro: {e}")
         traceback.print_exc()
         print("--- FIM DO ERRO ---")
+        
         # Se a IA falhar, retorna a lista original para não quebrar o fluxo
         return jsonify({"ingredientes_normalizados": ingredientes_brutos})
 
