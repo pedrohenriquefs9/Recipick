@@ -1,13 +1,10 @@
-from flask import Flask, request, jsonify, json
+from flask import request, jsonify, json, Blueprint
 from backend.services.gemini import modelo
-from flask_cors import CORS
-import os
 
-DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
-app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
-CORS(app)
+normalizarBp = Blueprint("normalizar", __name__)
 
-@app.route("/api/normalizar-ingredientes", methods=["POST"])
+
+@normalizarBp.route("/api/normalizar-ingredientes", methods=["POST"])
 def normalizar_ingredientes():
     data = request.json
     ingredientes_brutos = data.get("ingredientes", [])

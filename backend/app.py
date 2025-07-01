@@ -2,16 +2,16 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 
-from backend.routes.normalizar_ingredientes import normalizar_ingredientes
-from backend.routes.pesquisar import pesquisar_receita
-from backend.routes.receitas import gerar_receitas
+from backend.routes.normalizar_ingredientes import normalizarBp
+from backend.routes.pesquisar import pesquisarBp
+from backend.routes.receitas import receitaBp
 
 DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
 app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
 
-app.add_url_rule("/api/normalizar-ingredientes", view_func=normalizar_ingredientes, methods=["POST"])
-app.add_url_rule("/api/receitas", view_func=gerar_receitas, methods=["POST"])
-app.add_url_rule("/api/pesquisar", view_func=pesquisar_receita, methods=["POST"])
+app.register_blueprint(normalizarBp)
+app.register_blueprint(pesquisarBp)
+app.register_blueprint(receitaBp)
 
 # CORS configuration
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")

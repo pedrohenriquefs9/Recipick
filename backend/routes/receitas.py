@@ -1,14 +1,10 @@
-from flask import Flask, app, jsonify, request
-from flask_cors import CORS
-import os
+from flask import jsonify, request, Blueprint
 from backend.services.gemini import modelo
 from backend.utils.promptConfig import construir_prompt_com_settings
 
-DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
-app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
-CORS(app)
+receitaBp = Blueprint("receita", __name__)
 
-@app.route("/api/receitas", methods=["POST"])
+@receitaBp.route("/api/receitas", methods=["POST"])
 def gerar_receitas():
     data = request.json
     ingredientes = data.get("ingredientes", "").strip()
