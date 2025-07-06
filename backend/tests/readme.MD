@@ -44,8 +44,7 @@ tests/
 5. **Rode o coverage**:
 
    ```bash
-   export GEMINI_API_KEY=sua_chave_aqui # No Windows use: set
-   python -m pytest --cov=backend --cov-report=html
+   GEMINI_API_KEY=sua_chave_aqui python -m pytest --cov=backend --cov-report=html
    ```
 
 6. **Acesse o relatório html**:
