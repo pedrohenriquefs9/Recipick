@@ -2,8 +2,18 @@ import pytest
 from flask import Flask
 from backend.routes.normalizar_ingredientes import normalizarBp
 
+class MockModelo:
+    @staticmethod
+    def generate_content(prompt):
+        class Response:
+            text = '["feijão", "cebola roxa", "queijo", "sobrecoxa"]'
+        return Response()
+
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    from backend.services import gemini
+    monkeypatch.setattr(gemini, "modelo", MockModelo)
+
     app = Flask(__name__)
     app.register_blueprint(normalizarBp)
     app.config['TESTING'] = True
@@ -18,9 +28,19 @@ def test_normalizar_ingredientes_escritaErrada(client):
     resposta = client.post("/api/normalizar-ingredientes", json=entradaTeste)
     respostaJson = resposta.get_json()
     assert respostaJson == {"ingredientes_normalizados": ["feijão", "cebola roxa", "queijo", "sobrecoxa"]}
-    
+
 @pytest.mark.api
-def test_normalizar_ingredientes_invalidos(client):
+def test_normalizar_ingredientes_invalidos(client, monkeypatch):
+    class MockFalha:
+        @staticmethod
+        def generate_content(prompt):
+            class Response:
+                text = '["", "", "", ""]'
+            return Response()
+
+    from backend.services import gemini
+    monkeypatch.setattr(gemini, "modelo", MockFalha)
+
     entradaTeste = {
         "ingredientes": ["lajflasdk", "asfhdbsajbashkbadjkbdasjk", "lksdksl", "asdfgh"]
     }
@@ -29,22 +49,21 @@ def test_normalizar_ingredientes_invalidos(client):
     assert respostaJson == {"ingredientes_normalizados": ["", "", "", ""]}
 
 @pytest.mark.type
-def test_normalizar_ingredientes_type (client):
+def test_normalizar_ingredientes_type(client):
     entradaTeste = {
         "ingredientes": ["feijão", "cebola roxa", "queijo", "sobrecoxa"]
     }
     resposta = client.post("/api/normalizar-ingredientes", json=entradaTeste)
     respostaJson = resposta.get_json()
-    for ingredientes in respostaJson['ingredientes_normalizados']:
-        assert isinstance(ingredientes, str)
+    for ingrediente in respostaJson['ingredientes_normalizados']:
+        assert isinstance(ingrediente, str)
 
 @pytest.mark.type
-def test_normalizar_ingredientes_type2 (client):
+def test_normalizar_ingredientes_type2(client):
     entradaTeste = {
         "ingredientes": 'arroz  '
     }
     resposta = client.post("/api/normalizar-ingredientes", json=entradaTeste)
     respostaJson = resposta.get_json()
-    for ingredientes in respostaJson['ingredientes_normalizados']:
-        assert isinstance(ingredientes, str)
-    
+    for ingrediente in respostaJson['ingredientes_normalizados']:
+        assert isinstance(ingrediente, str)

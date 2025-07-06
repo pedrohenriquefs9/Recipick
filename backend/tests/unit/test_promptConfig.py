@@ -1,11 +1,11 @@
 from backend.utils.promptConfig import construir_prompt_com_settings
 
-def test_prompt_settings_vazio():
+def test_promptConfig_vazio():
     base = "Base prompt"
     result = construir_prompt_com_settings(base, {})
     assert result == base
 
-def test_prompt_com_todas_configuracoes():
+def test_promptConfig_normal():
     base = "Base prompt"
     settings = {
         "portionSize": "grande",
@@ -18,7 +18,7 @@ def test_prompt_com_todas_configuracoes():
     assert "uma receita mais elaborada" in result
     assert "A receita DEVE ser estritamente vegetariana" in result
 
-def test_prompt_com_restricoes():
+def test_promptConfig_restrições():
     base = "Base prompt"
     settings = {
         "restrictions": "glúten, lactose"

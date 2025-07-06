@@ -1,15 +1,11 @@
 import pytest
 import os
-import shutil # Importa shutil para remover diretórios
-from flask import Flask, Blueprint, Response # Importa Response para type hinting
-
-# Importa a instância do aplicativo Flask do seu arquivo app.py
-# Agora, importamos os Blueprints diretamente, sem mocks.
-# Certifique-se de que os arquivos dos Blueprints (normalizar_ingredientes.py, pesquisar.py, receitas.py)
-# existam e sejam importáveis no caminho 'backend.routes'.
+from flask import Flask, Blueprint, Response 
 from backend.routes.normalizar_ingredientes import normalizarBp
 from backend.routes.pesquisar import pesquisarBp
 from backend.routes.receitas import receitaBp
+
+import shutil # Importa shutil para remover diretórios
 from backend.app import app, DIST_FOLDER # Importa o app e DIST_FOLDER do seu app.py
 
 @pytest.fixture
@@ -44,22 +40,17 @@ def client():
 
 
 def test_app_creation():
-    """Verifica se a instância do aplicativo Flask foi criada corretamente."""
     assert isinstance(app, Flask)
-    # O nome do app será 'backend.app' se for importado, ou '__main__' se for executado diretamente.
-    # Para testes, 'backend.app' é o esperado quando importado.
     assert app.name == "backend.app"
 
 
-def test_blueprint_registration():
-    """Verifica se todos os Blueprints foram registrados na aplicação."""
-    # Verifica se os Blueprints reais estão presentes no mapa de Blueprints do app
+def test_app_blueprint():
     assert "normalizar" in app.blueprints
     assert "pesquisar" in app.blueprints
     assert "receita" in app.blueprints
 
 
-def test_serve_root_path(client):
+def test_app_index(client):
     """Verifica se a rota '/' serve o index.html."""
     response: Response = client.get("/")
     assert response.status_code == 200
@@ -67,7 +58,7 @@ def test_serve_root_path(client):
     assert response.mimetype == "text/html"
 
 
-def test_serve_static_file(client):#
+def test_app_static(client):#
     """Verifica se a rota serve arquivos estáticos corretamente."""
     response: Response = client.get("/static_file.js")
     assert response.status_code == 200
