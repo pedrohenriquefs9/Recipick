@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useAppState } from "./store/AppContext";
 import { Header } from "./components/Header";
 import { Hello } from "./components/Hello";
 import { ParametersChips } from "./components/ParametersChips";
@@ -8,39 +8,49 @@ import { api } from "./api";
 import { AIMessage } from "./components/AIMessage";
 
 export function Home() {
-  const [ingredients, setIngredients] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // Use o estado e o dispatch do nosso contexto global
+  const { state, dispatch } = useAppState();
+  const { ingredients, messages, isLoading } = state;
 
   async function handleGenerateRecipes() {
     if (ingredients.length === 0) {
       return;
     }
     try {
-      setIsLoading(true);
-      // TODO: It don't make sense to make an extra request to normalize ingredients
-      // We can just send the ingredients directly to the recipe generation endpoint
+      dispatch({ type: "START_LOADING" });
+
       const { data } = await api.post("/normalizar-ingredientes", {
         ingredientes: ingredients,
       });
+
       const response = await api.post("/receitas", {
         ingredientes: data.ingredientes_normalizados
           .filter((ingredient) => ingredient.trim() !== "")
           .join(", "),
+        settings: state.settings, // Enviando as configurações para o backend
       });
 
-      setMessages((prev) => [
-        ...prev,
-        {
+      // Adiciona a resposta da IA às mensagens
+      dispatch({
+        type: "ADD_MESSAGE",
+        payload: {
           role: "assistant",
           content: response.data.receitas,
         },
-      ]);
+      });
     } catch (error) {
-      console.error("Erro ao normalizar ingredientes:", error);
-      alert("Ocorreu um erro ao processar os ingredientes. Tente novamente.");
-    } finally {
-      setIsLoading(false);
+      console.error("Erro ao gerar receitas:", error);
+      dispatch({
+        type: "SET_ERROR",
+        payload: "Ocorreu um erro ao processar sua solicitação. Tente novamente.",
+      });
+      dispatch({
+        type: "ADD_MESSAGE",
+        payload: {
+          role: "assistant",
+          content: "Desculpe, não consegui gerar as receitas. Por favor, tente novamente.",
+        },
+      });
     }
   }
 
@@ -48,18 +58,22 @@ export function Home() {
     if (!newIngredient || newIngredient.trim() === "") {
       return;
     }
-    setIngredients((prev) => [...prev, newIngredient]);
+    dispatch({ type: "ADD_INGREDIENT", payload: newIngredient });
+  }
+  
+  function handleRemoveIngredient(index) {
+    dispatch({ type: "REMOVE_INGREDIENT", payload: index });
   }
 
   function handleRefineRecipes(message) {
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        content: message,
-      },
-    ]);
-
+     dispatch({
+        type: "ADD_MESSAGE",
+        payload: {
+          role: "user",
+          content: message,
+        },
+      });
+    // Aqui viria a lógica para refinar, que pode ser uma nova chamada de API
     console.log("Refinando receitas com a mensagem:", message);
   }
 
@@ -81,9 +95,7 @@ export function Home() {
             <ParametersChips
               params={ingredients}
               editable={true}
-              onRemove={(index) => {
-                setIngredients((prev) => prev.filter((_, i) => i !== index));
-              }}
+              onRemove={handleRemoveIngredient}
             />
           </div>
         </div>
@@ -91,10 +103,10 @@ export function Home() {
           {(messages.length > 0 || isLoading) && (
             <div className="flex flex-col items-start justify-center gap-4 mt-6">
               {messages.map((message, index) =>
-                message.role == "assistant" ? (
+                message.role === "assistant" ? (
                   <AIMessage key={index} message={message.content} />
                 ) : (
-                  <div className="flex flex-col items-center justify-center p-2 bg-blue-50 text-black rounded-xl shadow-md text-sm">
+                  <div key={index} className="flex flex-col items-center justify-center p-2 bg-blue-50 text-black rounded-xl shadow-md text-sm self-end">
                     {message.content}
                   </div>
                 )
@@ -108,14 +120,14 @@ export function Home() {
           )}
         </div>
         <div className="flex flex-col items-end justify-center gap-4 w-full mt-6">
-          {ingredients.length > 0 && messages.length == 0 && !isLoading && (
+          {ingredients.length > 0 && messages.length === 0 && !isLoading && (
             <PrimaryButton onClick={handleGenerateRecipes}>
               Continuar
             </PrimaryButton>
           )}
           <MessageInput
             placeholder={
-              messages.length == 0
+              messages.length === 0
                 ? "Digite um ingrediente ou preferência"
                 : "O que você acha?"
             }
