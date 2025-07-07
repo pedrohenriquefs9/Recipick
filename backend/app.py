@@ -1,42 +1,61 @@
-from flask import Flask, send_from_directory
-from flask.wrappers import Response
-from flask_cors import CORS
 import os
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from backend.core.database import db
 
-from backend.routes.normalizar_ingredientes import normalizarBp
-from backend.routes.pesquisar import pesquisarBp
-from backend.routes.receitas import receitaBp
-
-# Define a pasta onde o frontend compilado (build) está localizado
-DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
-
-# Cria a instância principal da aplicação Flask
-app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
-
-# Configura o CORS para permitir que o frontend se comunique com esta API
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-# Registra os Blueprints na aplicação principal
-app.register_blueprint(normalizarBp)
-app.register_blueprint(pesquisarBp)
-app.register_blueprint(receitaBp)
-
-
-# --- Rota para Servir o Frontend ---
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
-def serve(path: str) -> Response:
+def create_app():
     """
-    Serve o arquivo principal do frontend (index.html) ou qualquer outro arquivo estático
-    solicitado (como JS, CSS, imagens).
+    Cria e configura uma instância da aplicação Flask (Padrão Application Factory).
     """
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    else:
-        return send_from_directory(app.static_folder, "index.html")
+    DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
+    app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///history.db'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Inicialização das extensões
+    db.init_app(app)
+    
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+    CORS(app,
+         origins=allowed_origins,
+         allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         supports_credentials=True)
+
+    # Importação e registro dos Blueprints
+    from backend.routes.normalizar_ingredientes import normalizarBp
+    from backend.routes.pesquisar import pesquisarBp
+    from backend.routes.receitas import receitaBp, refinarReceitaBp # Modificado
+    from backend.routes.history import history_bp
+    from backend.routes.main import main_bp
+
+    app.register_blueprint(normalizarBp)
+    app.register_blueprint(pesquisarBp)
+    app.register_blueprint(receitaBp)
+    app.register_blueprint(refinarReceitaBp) # Adicionado
+    app.register_blueprint(history_bp)
+    app.register_blueprint(main_bp)
+
+    with app.app_context():
+        # Cria as tabelas do banco de dados se não existirem
+        db.create_all()
+
+    # Hooks de Requisição
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = jsonify({})
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add('Access-Control-Allow-Headers', "*")
+            response.headers.add('Access-Control-Allow-Methods', "*")
+            return response
+
+    return app
 
 
 # --- Inicialização do Servidor ---
 if __name__ == "__main__":
-    # Este bloco é executado quando você roda 'python -m backend.app'
-    app.run(debug=True, port=5000)
+    app = create_app()
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)

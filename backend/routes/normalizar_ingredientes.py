@@ -1,6 +1,7 @@
 from flask import request, jsonify, json, Blueprint
-import traceback
-from backend.services.gemini import modelo, generation_config
+from backend.services.gemini import modelo
+from backend.core.database import db
+from backend.core.models import ApiCall
 
 # Cria um Blueprint para esta rota
 normalizarBp = Blueprint("normalizar", __name__)
@@ -27,10 +28,22 @@ def normalizar_ingredientes():
     """
 
     try:
-        resposta = modelo.generate_content(prompt, generation_config=generation_config)
-        dados_normalizados = json.loads(resposta.text)
-        return jsonify(dados_normalizados)
+        resposta = modelo.generate_content(prompt)
+        lista_str = resposta.text.strip().replace("`", "").replace("json", "").strip()
+        lista_normalizada = json.loads(lista_str)
+
+        try:
+            new_call = ApiCall(
+                endpoint=request.path,
+                prompt=prompt,
+                response_text=resposta.text
+            )
+            db.session.add(new_call)
+            db.session.commit()
+        except Exception as e:
+            print(f"Erro ao salvar histórico em /api/normalizar-ingredientes: {e}")
+
+        return jsonify({"ingredientes_normalizados": lista_normalizada})
     except Exception as e:
-        print(f"--- ERRO NA ROTA /api/normalizar-ingredientes ---\nErro: {e}")
-        traceback.print_exc()
+        print(f"Erro ao normalizar/parsear JSON da IA: {e}")
         return jsonify({"ingredientes_normalizados": ingredientes_brutos})

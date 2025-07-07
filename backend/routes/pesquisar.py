@@ -3,6 +3,8 @@ import json
 import traceback
 from backend.services.gemini import modelo, generation_config
 from backend.utils.promptConfig import construir_prompt_com_settings
+from backend.core.database import db
+from backend.core.models import ApiCall
 
 # Cria um Blueprint para esta rota
 pesquisarBp = Blueprint("pesquisar", __name__)
@@ -35,13 +37,17 @@ def pesquisar_receita():
     """
 
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
+    resposta = modelo.generate_content(prompt_final)
 
     try:
-        resposta = modelo.generate_content(prompt_final, generation_config=generation_config)
-        dados_receita = json.loads(resposta.text)
-        # Retorna o objeto dentro de uma lista para manter o mesmo formato da outra rota
-        return jsonify({"receitas": [dados_receita]})
+        new_call = ApiCall(
+            endpoint=request.path,
+            prompt=prompt_final,
+            response_text=resposta.text
+        )
+        db.session.add(new_call)
+        db.session.commit()
     except Exception as e:
-        print(f"--- ERRO NA ROTA /api/pesquisar ---\nErro: {e}")
-        traceback.print_exc()
-        return jsonify({"erro": "Ocorreu um erro ao pesquisar a receita. Tente novamente."}), 500
+        print(f"Erro ao salvar histórico em /api/pesquisar: {e}")
+
+    return jsonify({"receita": resposta.text})
