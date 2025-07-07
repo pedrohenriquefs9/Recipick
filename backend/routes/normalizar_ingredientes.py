@@ -3,12 +3,12 @@ from backend.services.gemini import modelo
 from backend.core.database import db
 from backend.core.models import ApiCall
 
+# Cria um Blueprint para esta rota
 normalizarBp = Blueprint("normalizar", __name__)
-
 
 @normalizarBp.route("/api/normalizar-ingredientes", methods=["POST"])
 def normalizar_ingredientes():
-    data = request.json
+    data = request.json or {}
     ingredientes_brutos = data.get("ingredientes", [])
     if not ingredientes_brutos:
         return jsonify({"ingredientes_normalizados": []})
@@ -19,10 +19,10 @@ def normalizar_ingredientes():
     1. Corrija erros (ex: "feijaox" -> "feijão").
     2. Padronize o nome (ex: "Tomate italiano maduro" -> "tomate").
     3. Se um item não for um ingrediente, retorne uma string vazia "".
-    4. Sua resposta deve ser APENAS uma string JSON válida representando uma lista de strings. Não inclua markdown, explicações ou qualquer outro texto.
+    4. Sua resposta deve ser APENAS um objeto JSON com a chave "ingredientes_normalizados", contendo uma lista de strings.
 
     Exemplo de Entrada: ["feijaox", "cebola roxa", "Qeijo", "asdfgh"]
-    Sua Saída: ["feijão", "cebola roxa", "queijo", ""]
+    Sua Saída: {{"ingredientes_normalizados": ["feijão", "cebola roxa", "queijo", ""]}}
     ---
     Lista de ingredientes para normalizar: {json.dumps(ingredientes_brutos)}
     """

@@ -1,15 +1,18 @@
 from flask import jsonify, request, Blueprint
-from backend.services.gemini import modelo
+import json
+import traceback
+from backend.services.gemini import modelo, generation_config
 from backend.utils.promptConfig import construir_prompt_com_settings
 from backend.core.database import db
 from backend.core.models import ApiCall
 
+# Cria um Blueprint para esta rota
 receitaBp = Blueprint("receita", __name__)
 refinarReceitaBp = Blueprint("refinar_receita", __name__)
 
 @receitaBp.route("/api/receitas", methods=["POST"])
 def gerar_receitas():
-    data = request.json
+    data = request.json or {}
     ingredientes = data.get("ingredientes", "").strip()
     settings = data.get("settings", {})
 
@@ -17,35 +20,28 @@ def gerar_receitas():
         return jsonify({"erro": "Nenhum ingrediente informado."}), 400
 
     style = settings.get('style', 'criativo')
+    estilo_desc = "criativas e surpreendentes" if style == 'criativo' else "populares e clássicas"
 
-    if style == 'popular':
-        prompt_base = f"""Você é um assistente de culinária focado em receitas **populares e clássicas**. Com base nos ingredientes: {ingredientes}.
+    prompt_base = f"""
+    Sua única tarefa é criar receitas em formato JSON.
+    Com base nos ingredientes: **{ingredientes}**.
+    Gere um objeto JSON com a chave "receitas", que é uma lista de 3 receitas **{estilo_desc}**.
 
-Tarefa:
-- Sugira 3 receitas **conhecidas e tradicionais** que usem esses ingredientes. Foque no que é familiar e amado pelo público.
-- Corrija e liste os ingredientes informados.
-- Use um modo de preparo claro e direto.
-- Sugira 2 ingredientes extras que combinariam bem com os pratos.
-- Para cada novo ingrediente, sugira 1 nova receita popular.
-
-Formato obrigatório:
-- Use apenas **markdown puro** (sem emojis).
-- Separe visualmente apenas com `---`.
-"""
-    else: # Estilo criativo (padrão)
-        prompt_base = f"""Você é um assistente de receitas **criativas e ousadas**. Com base nos ingredientes: {ingredientes}.
-
-Tarefa:
-- Sugira 3 receitas **criativas e surpreendentes** usando os ingredientes informados, incentivando combinações inusitadas.
-- Corrija e liste os ingredientes informados.
-- Use um modo de preparo inspirador.
-- Sugira 2 ingredientes extras que elevariam o nível dos pratos.
-- Para cada novo ingrediente, sugira 1 nova receita criativa.
-
-Formato obrigatório:
-- Use apenas **markdown puro** (sem emojis).
-- Separe visualmente apenas com `---`.
-"""
+    O JSON de saída deve seguir exatamente este schema:
+    {{
+      "receitas": [
+        {{
+          "titulo": "string",
+          "tempoDePreparoEmMin": "integer",
+          "porcoes": "integer",
+          "ingredientes": [
+            {{"nome": "string", "quantidade": "string", "unidadeMedida": "string"}}
+          ],
+          "preparo": ["string"]
+        }}
+      ]
+    }}
+    """
 
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
     resposta = modelo.generate_content(prompt_final)
