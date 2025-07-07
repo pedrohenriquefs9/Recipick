@@ -6,8 +6,11 @@ from backend.routes.pesquisar import pesquisarBp
 from backend.routes.receitas import receitaBp
 
 import shutil # Importa shutil para remover diretórios
-from backend.app import app, DIST_FOLDER # Importa o app e DIST_FOLDER do seu app.py
+from backend.app import create_app # Importa o app e DIST_FOLDER do seu app.py
 
+app=create_app()
+DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
+    
 @pytest.fixture
 def client():
     """
@@ -38,17 +41,14 @@ def client():
     if os.path.exists(temp_dist_folder):
         shutil.rmtree(temp_dist_folder)
 
-
 def test_app_creation():
     assert isinstance(app, Flask)
     assert app.name == "backend.app"
-
 
 def test_app_blueprint():
     assert "normalizar" in app.blueprints
     assert "pesquisar" in app.blueprints
     assert "receita" in app.blueprints
-
 
 def test_app_index(client):
     """Verifica se a rota '/' serve o index.html."""

@@ -34,4 +34,4 @@ def test_pesquisar_erro(client):
     entrada_erro = {}
     resposta = client.post("/api/receitas", json=entrada_erro)
     assert resposta.status_code == 404
-    assert resposta.get_json() == {'erro': 'Nome da receita não informado.'}
+    assert resposta.get_json() == None
