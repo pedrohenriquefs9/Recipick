@@ -91,19 +91,24 @@ export function Home() {
   return (
     <div className="flex flex-col items-center justify-between bg-bg px-4 h-dvh">
       <Header />
-      <main className="flex flex-col items-center h-full mb-6">
-        <div className="h-full flex flex-col items-center justify-center">
-          <div className="flex flex-col items-center justify-center gap-4">
-            {messages.length === 0 && <Hello />}
-            <ParametersChips
-              params={ingredients}
-              editable={true}
-              onRemove={(index) => {
-                setIngredients((prev) => prev.filter((_, i) => i !== index));
-              }}
-            />
+      <main className="flex flex-col items-center w-full h-full mb-6 overflow-y-auto">
+        {/* Este bloco agora só aparece no início */}
+        {messages.length === 0 && (
+          <div className="h-full flex flex-col items-center justify-center">
+            <div className="flex flex-col items-center justify-center gap-4">
+              <Hello />
+              <ParametersChips
+                params={ingredients}
+                editable={true}
+                onRemove={(index) => {
+                  setIngredients((prev) => prev.filter((_, i) => i !== index));
+                }}
+              />
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Este bloco mostra as mensagens */}
         <div className="flex flex-col items-start justify-center w-full max-w-2xl mt-6">
           {(messages.length > 0 || isLoading) && (
             <div className="flex flex-col items-start justify-center gap-4 mt-6">
@@ -111,7 +116,7 @@ export function Home() {
                 message.role == "assistant" ? (
                   <AIMessage key={index} message={message.content} />
                 ) : (
-                  <div key={index} className="flex flex-col items-center justify-center p-2 bg-blue-50 text-black rounded-xl shadow-md text-sm">
+                  <div key={index} className="self-end p-2 bg-primary text-light rounded-xl shadow-md text-sm max-w-lg">
                     {message.content}
                   </div>
                 )
@@ -124,23 +129,27 @@ export function Home() {
             </div>
           )}
         </div>
-        <div className="flex flex-col items-end justify-center gap-4 w-full mt-6">
-          {ingredients.length > 0 && messages.length == 0 && !isLoading && (
-            <PrimaryButton onClick={handleGenerateRecipes}>
-              Continuar
-            </PrimaryButton>
-          )}
-          <MessageInput
-            placeholder={
-              messages.length == 0
-                ? "Digite um ingrediente ou preferência"
-                : "O que você acha?"
-            }
-            disabled={isLoading}
-            onSend={handleOnSend}
-          />
-        </div>
       </main>
+
+      {/* Input de mensagem sempre ao final */}
+      <div className="w-full max-w-2xl">
+        <div className="flex flex-col items-end justify-center gap-4 w-full mt-auto">
+            {ingredients.length > 0 && messages.length === 0 && !isLoading && (
+                <PrimaryButton onClick={handleGenerateRecipes}>
+                Continuar
+                </PrimaryButton>
+            )}
+            <MessageInput
+                placeholder={
+                messages.length === 0
+                    ? "Digite um ingrediente ou preferência"
+                    : "O que você acha?"
+                }
+                disabled={isLoading}
+                onSend={handleOnSend}
+            />
+        </div>
+      </div>
     </div>
   );
 }
