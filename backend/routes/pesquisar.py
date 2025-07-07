@@ -1,6 +1,8 @@
 from flask import jsonify, request, Blueprint
 from backend.services.gemini import modelo
 from backend.utils.promptConfig import construir_prompt_com_settings
+from backend.core.database import db
+from backend.core.models import ApiCall
 
 pesquisarBp = Blueprint("pesquisar", __name__)
 
@@ -17,4 +19,16 @@ def pesquisar_receita():
 
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
     resposta = modelo.generate_content(prompt_final)
+
+    try:
+        new_call = ApiCall(
+            endpoint=request.path,
+            prompt=prompt_final,
+            response_text=resposta.text
+        )
+        db.session.add(new_call)
+        db.session.commit()
+    except Exception as e:
+        print(f"Erro ao salvar histórico em /api/pesquisar: {e}")
+
     return jsonify({"receita": resposta.text})
