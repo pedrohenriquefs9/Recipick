@@ -26,13 +26,14 @@ def create_app():
     # Importação e registro dos Blueprints
     from backend.routes.normalizar_ingredientes import normalizarBp
     from backend.routes.pesquisar import pesquisarBp
-    from backend.routes.receitas import receitaBp
+    from backend.routes.receitas import receitaBp, refinarReceitaBp # Modificado
     from backend.routes.history import history_bp
     from backend.routes.main import main_bp
 
     app.register_blueprint(normalizarBp)
     app.register_blueprint(pesquisarBp)
     app.register_blueprint(receitaBp)
+    app.register_blueprint(refinarReceitaBp) # Adicionado
     app.register_blueprint(history_bp)
     app.register_blueprint(main_bp)
 

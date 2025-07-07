@@ -18,8 +18,6 @@ export function Home() {
     }
     try {
       setIsLoading(true);
-      // TODO: It don't make sense to make an extra request to normalize ingredients
-      // We can just send the ingredients directly to the recipe generation endpoint
       const { data } = await api.post("/normalizar-ingredientes", {
         ingredientes: ingredients,
       });
@@ -51,16 +49,35 @@ export function Home() {
     setIngredients((prev) => [...prev, newIngredient]);
   }
 
-  function handleRefineRecipes(message) {
-    setMessages((prev) => [
-      ...prev,
+  async function handleRefineRecipes(message) {
+    const newMessages = [
+      ...messages,
       {
         role: "user",
         content: message,
       },
-    ]);
+    ];
+    setMessages(newMessages);
+    setIsLoading(true);
 
-    console.log("Refinando receitas com a mensagem:", message);
+    try {
+      const response = await api.post("/refinar-receitas", {
+        historico: newMessages,
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: response.data.receitas,
+        },
+      ]);
+    } catch (error) {
+      console.error("Erro ao refinar receitas:", error);
+      alert("Ocorreu um erro ao refinar as receitas. Tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   function handleOnSend(message) {
@@ -77,7 +94,7 @@ export function Home() {
       <main className="flex flex-col items-center h-full mb-6">
         <div className="h-full flex flex-col items-center justify-center">
           <div className="flex flex-col items-center justify-center gap-4">
-            <Hello />
+            {messages.length === 0 && <Hello />}
             <ParametersChips
               params={ingredients}
               editable={true}
@@ -94,7 +111,7 @@ export function Home() {
                 message.role == "assistant" ? (
                   <AIMessage key={index} message={message.content} />
                 ) : (
-                  <div className="flex flex-col items-center justify-center p-2 bg-blue-50 text-black rounded-xl shadow-md text-sm">
+                  <div key={index} className="flex flex-col items-center justify-center p-2 bg-blue-50 text-black rounded-xl shadow-md text-sm">
                     {message.content}
                   </div>
                 )

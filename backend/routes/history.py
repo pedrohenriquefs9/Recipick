@@ -19,6 +19,10 @@ def _extract_summary_from_prompt(prompt, endpoint):
         elif endpoint == "/api/pesquisar":
             match = re.search(r"Quero a receita de: (.*?)\.", prompt, re.DOTALL)
             if match: return f"Busca: {match.group(1).strip()}"
+        elif endpoint == "/api/refinar-receitas":
+            user_inputs = re.findall(r'\*\*User:\*\* (.*?)(?=\n\*\*|$)', prompt, re.DOTALL)
+            if user_inputs:
+                return f"Usuário: {user_inputs[-1].strip()}"
     except Exception:
         return ""
     return ""
@@ -26,20 +30,24 @@ def _extract_summary_from_prompt(prompt, endpoint):
 @history_bp.route("/api/history", methods=["GET"])
 def get_history():
     try:
-        # Cria uma "janela" que particiona os dados por endpoint e os ordena por data
-        # e calcula o número da linha para cada um (este é o nosso contador).
-        row_number_func = func.row_number().over(
-            partition_by=ApiCall.endpoint,
-            order_by=ApiCall.timestamp
-        ).label('endpoint_count')
+        # Lógica para criar um número de "conversa" unificado
+        all_calls_asc = ApiCall.query.order_by(ApiCall.timestamp.asc()).all()
+        call_id_to_number = {}
+        conversation_number = 0
+        for call in all_calls_asc:
+            # Uma nova conversa começa com a normalização de ingredientes
+            if call.endpoint == "/api/normalizar-ingredientes":
+                conversation_number += 1
+            call_id_to_number[call.id] = conversation_number
 
-        # Busca as chamadas junto com o seu número de contagem
-        calls_with_count = db.session.query(ApiCall, row_number_func).order_by(ApiCall.timestamp.desc()).all()
+        # Busca as chamadas para exibição, da mais nova para a mais antiga
+        calls_for_display = ApiCall.query.order_by(ApiCall.timestamp.desc()).all()
 
         endpoint_map = {
             "/api/receitas": "Geração de Receitas",
             "/api/pesquisar": "Busca por Receita",
-            "/api/normalizar-ingredientes": "Correção de Ingredientes"
+            "/api/normalizar-ingredientes": "Correção de Ingredientes",
+            "/api/refinar-receitas": "Refinamento de Receita"
         }
 
         utc_tz = timezone('UTC')
@@ -75,10 +83,13 @@ def get_history():
                 <h1>Histórico de Requisições</h1>
         """
 
-        if not calls_with_count:
+        if not calls_for_display:
             html += "<p style='text-align:center;'>Nenhum registro encontrado.</p>"
         
-        for call, count in calls_with_count:
+        for call in calls_for_display:
+            # Pega o número da conversa unificado que calculamos
+            number = call_id_to_number.get(call.id, 0)
+
             aware_utc_time = utc_tz.localize(call.timestamp)
             br_time = aware_utc_time.astimezone(br_tz)
             formatted_time = br_time.strftime('%d/%m/%Y às %H:%M:%S')
@@ -90,7 +101,7 @@ def get_history():
             <details class="history-item">
                 <summary class="summary">
                     <div class="summary-header">
-                        <span class="endpoint">{friendly_endpoint} <span class="endpoint-counter">#{count}</span></span>
+                        <span class="endpoint">{friendly_endpoint} <span class="endpoint-counter">#{number}</span></span>
                         <span class="timestamp">{formatted_time}</span>
                     </div>
                     <div class="prompt-summary">{prompt_summary}</div>
