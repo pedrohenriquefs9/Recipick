@@ -2,12 +2,11 @@
 
 ```
 tests/
-├── conftest.py              # Configurações e fixtures compartilhadas
-├── unit/                    # Testes unitários
+├── unit/                 
 │   ├── test_gemini.py
 │   ├── test_promptConfig.py
-│   ├── test_app.py
-└── integration/                # Dados de teste (se necessário)
+│   └── test_app.py
+└── integration/
     ├── test_pesquiar.py
     ├── test_normalizar_ingredientes.py
     └── test_receitas.py
