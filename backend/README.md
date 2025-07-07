@@ -30,7 +30,8 @@ To get started with the ReciPick backend, follow these steps:
 4. **Start the development server**:
 
    ```bash
-   python app.py
+   cd ..
+   python -m backend.app
    ```
 
 5. **Access the application**:
