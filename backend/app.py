@@ -29,8 +29,12 @@ def create_app():
     from backend.routes.receitas import receitaBp, refinarReceitaBp # Modificado
     from backend.routes.history import history_bp
     from backend.routes.main import main_bp
+    from backend.routes.login import loginBp
+    from backend.routes.login import logoutBp
 
     app.register_blueprint(normalizarBp)
+    app.register_blueprint(loginBp)
+    app.register_blueprint(logoutBp)
     app.register_blueprint(pesquisarBp)
     app.register_blueprint(receitaBp)
     app.register_blueprint(refinarReceitaBp) # Adicionado
