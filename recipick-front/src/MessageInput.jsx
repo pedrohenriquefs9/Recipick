@@ -11,7 +11,6 @@ export function MessageInput({
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef(null);
 
-  // Helper function for focusing the input
   const focusInput = () => {
     setTimeout(() => {
       inputRef.current?.focus();
@@ -26,7 +25,6 @@ export function MessageInput({
     event.preventDefault();
     onSend(inputValue.trim());
     setInputValue("");
-    // Keep focus on input after submission
     focusInput();
   }
   return (

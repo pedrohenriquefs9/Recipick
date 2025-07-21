@@ -43,7 +43,7 @@ export function Home() {
     }
   }, [messages, isLoading]);
 
-  // Função para adicionar ingredientes e habilitar o botão de continuar
+  // Função para adicionar ingredientes e habilitar o botão de gerar
   function handleAddIngredient(newIngredient) {
     if (!newIngredient || newIngredient.trim() === "") return;
     const updatedIngredients = [...new Set([...ingredients, newIngredient.trim()])];
@@ -54,7 +54,7 @@ export function Home() {
     }
   }
   
-  // Função para remover ingrediente e habilitar o botão de continuar
+  // Função para remover ingrediente e habilitar o botão de gerar
   function handleRemoveIngredient(indexToRemove) {
     const newIngredients = ingredients.filter((_, index) => index !== indexToRemove);
     setIngredients(newIngredients);

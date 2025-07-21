@@ -35,7 +35,7 @@ export function RecipeCarousel({ recipes, onSelectRecipe }) {
     e.preventDefault();
     setIsDragging(true);
     const x = e.pageX - carouselRef.current.offsetLeft;
-    const walk = (x - startX);
+    const walk = (x - startX); // Velocidade de scroll 1:1
     carouselRef.current.scrollLeft = scrollLeft - walk;
   };
 
