@@ -3,7 +3,7 @@ import { Link } from "react-router";
 
 export function Header() {
   return (
-    <header className="flex w-full items-center justify-between py-4 pt-14">
+    <header className="flex w-full items-center justify-between py-4 pt-8">
       <Link to="/">
         <img src="/logo.svg" />
       </Link>
