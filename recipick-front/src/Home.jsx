@@ -1,5 +1,3 @@
-// pedrohenriquefs9/recipick/Recipick-a523c06ee35576e2de28a874a6a6746518831ecf/recipick-front/src/Home.jsx
-
 import { useState, useEffect, useRef } from "react";
 import { Header } from "./components/Header";
 import { Hello } from "./components/Hello";

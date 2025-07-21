@@ -1,5 +1,3 @@
-// pedrohenriquefs9/recipick/Recipick-a523c06ee35576e2de28a874a6a6746518831ecf/recipick-front/src/components/RecipeList.jsx
-
 import React from 'react';
 import { RecipeCard } from './RecipeCard';
 

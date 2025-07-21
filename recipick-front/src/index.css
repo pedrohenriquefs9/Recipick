@@ -16,15 +16,13 @@ body {
   color: var(--color-black);
   font-size: 16px;
   line-height: 1.5;
-  /* Prevent zoom on input focus in iOS */
   -webkit-text-size-adjust: 100%;
 }
 
-/* Better mobile viewport handling */
 html {
   height: 100%;
   height: 100vh;
-  height: 100dvh; /* Dynamic viewport height */
+  height: 100dvh;
 }
 
 body {
@@ -33,7 +31,6 @@ body {
   min-height: 100dvh;
 }
 
-/* Prevent input zoom on iOS */
 input, textarea, select {
   font-size: 16px !important;
 }

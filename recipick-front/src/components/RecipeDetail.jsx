@@ -1,5 +1,3 @@
-// pedrohenriquefs9/recipick/Recipick-a523c06ee35576e2de28a874a6a6746518831ecf/recipick-front/src/components/RecipeDetail.jsx
-
 import React from 'react';
 import { ArrowLeftIcon } from '@heroicons/react/24/solid';
 
@@ -18,7 +16,7 @@ export function RecipeDetail({ recipe, onClose }) {
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center p-4 z-50 animate-fade-in"
-      onClick={handleOutsideClick} // Adicionado aqui
+      onClick={handleOutsideClick}
     >
       <div 
         className="bg-solid text-black rounded-xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scale-up"
