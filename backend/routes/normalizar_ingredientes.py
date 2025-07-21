@@ -1,9 +1,10 @@
+# pedrohenriquefs9/recipick/Recipick-a523c06ee35576e2de28a874a6a6746518831ecf/backend/routes/normalizar_ingredientes.py
+
 from flask import request, jsonify, json, Blueprint
-from backend.services.gemini import modelo
+from backend.services.gemini import modelo, generation_config
 from backend.core.database import db
 from backend.core.models import ApiCall
 
-# Cria um Blueprint para esta rota
 normalizarBp = Blueprint("normalizar", __name__)
 
 @normalizarBp.route("/api/normalizar-ingredientes", methods=["POST"])
@@ -28,9 +29,10 @@ def normalizar_ingredientes():
     """
 
     try:
-        resposta = modelo.generate_content(prompt)
-        lista_str = resposta.text.strip().replace("`", "").replace("json", "").strip()
-        lista_normalizada = json.loads(lista_str)
+        # Melhoria: Força a resposta da IA para ser JSON
+        resposta = modelo.generate_content(prompt, generation_config=generation_config)
+        resposta_texto = resposta.text.strip()
+        dados_normalizados = json.loads(resposta_texto)
 
         try:
             new_call = ApiCall(
@@ -43,7 +45,9 @@ def normalizar_ingredientes():
         except Exception as e:
             print(f"Erro ao salvar histórico em /api/normalizar-ingredientes: {e}")
 
-        return jsonify({"ingredientes_normalizados": lista_normalizada})
+        # Correção: Retorna o objeto JSON diretamente como ele veio da IA.
+        return jsonify(dados_normalizados)
+        
     except Exception as e:
         print(f"Erro ao normalizar/parsear JSON da IA: {e}")
         return jsonify({"ingredientes_normalizados": ingredientes_brutos})
