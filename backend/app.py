@@ -3,7 +3,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from backend.core.database import db
 from flask_login import LoginManager
-from backend.utils.userModel import User
+from backend.core.userModel import User
 
 def create_app():
     """
