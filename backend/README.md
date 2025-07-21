@@ -25,12 +25,15 @@ To get started with the ReciPick backend, follow these steps:
     ```text
     GEMINI_API_KEY=your_api_key_here
     ALLOWED_ORIGINS=http://localhost:5173
+    GOOGLE_API_KEY=your_google_api_key_here
+    CUSTOM_SEARCH_ENGINE_ID=your_ID_search_engine_here
     ```
 
 4. **Start the development server**:
 
    ```bash
-   python app.py
+   cd ..
+   python -m backend.app
    ```
 
 5. **Access the application**:
