@@ -11,7 +11,7 @@ export function WelcomePage() {
             Login
           </button>
         </Link>
-        <Link to="/cadastro">
+        <Link to="/registrar">
           <button className="w-full rounded-full bg-solid p-3 text-center text-black font-semibold">
             Cadastrar-se
           </button>
