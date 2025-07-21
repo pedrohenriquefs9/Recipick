@@ -3,7 +3,6 @@ import { Link } from "react-router";
 
 export function Header() {
   return (
-    // Alterado de 'pt-14' para 'pt-8' para subir o header
     <header className="flex w-full items-center justify-between py-4 pt-8">
       <Link to="/">
         <img src="/logo.svg" />

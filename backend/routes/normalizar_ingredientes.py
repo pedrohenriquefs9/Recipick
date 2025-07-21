@@ -27,6 +27,7 @@ def normalizar_ingredientes():
     """
 
     try:
+        # Força a resposta da IA para ser JSON
         resposta = modelo.generate_content(prompt, generation_config=generation_config)
         resposta_texto = resposta.text.strip()
         dados_normalizados = json.loads(resposta_texto)
