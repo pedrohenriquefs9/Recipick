@@ -79,8 +79,6 @@ def buscar_imagem_receita(query_original):
 
     if query_original in _IMAGE_CACHE:
         return _IMAGE_CACHE[query_original]
-
-    # --- ESTRATÉGIA DE BUSCA EM MÚLTIPLOS NÍVEIS ---
     
     query_limpa = _limpar_query(query_original)
     palavras_limpas = query_limpa.split()
