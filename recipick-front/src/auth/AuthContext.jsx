@@ -19,12 +19,12 @@ export function AuthProvider({ children }) {
     setError('');
     try {
       // --- PONTO DE INTEGRAÇÃO PARA O BACKEND ---
-      // const response = await api.post('/auth/login', { email, password });
-      // const { token, user } = response.data;
+      const response = await api.post('/auth/login', { email, password });
+      const { token, user } = response.data;
 
       // ---- DADOS MOCKADOS (provisórios) ----
-      const mockResponse = { token: 'fake-jwt-token', user: { name: 'João' } };
-      const { token, user } = mockResponse;
+      //const mockResponse = { token: 'fake-jwt-token', user: { name: 'João' } };
+      //const { token, user } = mockResponse;
       // ------------------------------------
 
       localStorage.setItem('token', token);
@@ -43,7 +43,7 @@ export function AuthProvider({ children }) {
     setError('');
     try {
       // --- PONTO DE INTEGRAÇÃO PARA O BACKEND ---
-      // await api.post('/auth/registrar', { name, email, password });
+      await api.post('/auth/registrar', { name, email, password });
 
       // Após o registro, faz o login automaticamente
       await login(email, password);
