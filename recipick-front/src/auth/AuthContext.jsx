@@ -1,72 +1,72 @@
-import React, { createContext, useState, useContext } from 'react';
-import { api } from '../api'; // Assumindo que seu api.js está em src/
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { api } from '../api';
 
-// 1. Cria o Contexto
 const AuthContext = createContext(null);
 
-// 2. Cria o Provedor do Contexto
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token')); // Carrega o token do localStorage
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Configura o token em todas as chamadas da API
-  api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  useEffect(() => {
+    const verifySession = async () => {
+      try {
+        const response = await api.get('/auth/check_session');
+        setUser(response.data);
+      } catch (err) {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    verifySession();
+  }, []);
 
   const login = async (email, password) => {
     setLoading(true);
     setError('');
     try {
-      // --- PONTO DE INTEGRAÇÃO PARA O BACKEND ---
       const response = await api.post('/auth/login', { email, password });
-      const { token, user } = response.data;
-
-      // ---- DADOS MOCKADOS (provisórios) ----
-      //const mockResponse = { token: 'fake-jwt-token', user: { name: 'João' } };
-      //const { token, user } = mockResponse;
-      // ------------------------------------
-
-      localStorage.setItem('token', token);
-      setToken(token);
-      setUser(user);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(response.data.user);
+      return true;
     } catch (err) {
-      setError('Falha no login. Verifique suas credenciais.');
+      setError('Falha no login. Verifique as suas credenciais.');
+      setUser(null);
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.error("Erro no logout:", err);
+    } finally {
+      setUser(null);
+    }
+  };
+  
   const register = async (name, email, password) => {
     setLoading(true);
     setError('');
     try {
-      // --- PONTO DE INTEGRAÇÃO PARA O BACKEND ---
-      await api.post('/auth/registrar', { name, email, password });
-
-      // Após o registro, faz o login automaticamente
-      await login(email, password);
+        await api.post('/auth/registrar', { name, email, password });
+        return await login(email, password);
     } catch (err) {
-      setError('Falha no cadastro. Tente novamente.');
+        setError('Falha no registo. O email ou nome de utilizador pode já existir.');
+        return false;
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
-    delete api.defaults.headers.common['Authorization'];
-  };
-
-  const value = { user, token, loading, error, login, register, logout };
+  const value = { user, loading, error, login, logout, register };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// 3. Hook customizado para usar o contexto facilmente
 export function useAuth() {
   return useContext(AuthContext);
 }

@@ -5,7 +5,8 @@ from backend.core.models import ApiCall
 
 normalizarBp = Blueprint("normalizar", __name__)
 
-@normalizarBp.route("/api/normalizar-ingredientes", methods=["POST"])
+# CORREÇÃO: Removido o prefixo /api/. O endereço agora é relativo ao blueprint.
+@normalizarBp.route("/normalizar-ingredientes", methods=["POST"])
 def normalizar_ingredientes():
     data = request.json or {}
     ingredientes_brutos = data.get("ingredientes", [])
@@ -27,21 +28,14 @@ def normalizar_ingredientes():
     """
 
     try:
-        # Força a resposta da IA para ser JSON
         resposta = modelo.generate_content(prompt, generation_config=generation_config)
         resposta_texto = resposta.text.strip()
         dados_normalizados = json.loads(resposta_texto)
 
-        try:
-            new_call = ApiCall(
-                endpoint=request.path,
-                prompt=prompt,
-                response_text=resposta.text
-            )
-            db.session.add(new_call)
-            db.session.commit()
-        except Exception as e:
-            print(f"Erro ao salvar histórico em /api/normalizar-ingredientes: {e}")
+        # A lógica para salvar no histórico deve ser adicionada aqui se necessário
+        # Ex: new_call = ApiCall(...)
+        #     db.session.add(new_call)
+        #     db.session.commit()
 
         return jsonify(dados_normalizados)
         

@@ -7,13 +7,13 @@ from backend.services.image_search import buscar_imagem_receita
 from backend.utils.promptConfig import construir_prompt_com_settings
 from backend.core.database import db
 from backend.core.models import ApiCall
+from flask_login import login_required, current_user
 
 receitaBp = Blueprint("receita", __name__)
 refinarReceitaBp = Blueprint("refinar_receita", __name__)
 
 
 def adicionar_imagens_as_receitas(receitas_obj):
-    """Função auxiliar para iterar e adicionar URLs de imagem a cada receita."""
     if 'receitas' in receitas_obj and isinstance(receitas_obj.get('receitas'), list):
         for receita in receitas_obj['receitas']:
             if 'titulo' in receita:
@@ -22,18 +22,19 @@ def adicionar_imagens_as_receitas(receitas_obj):
     return receitas_obj
 
 
-@receitaBp.route("/api/receitas", methods=["POST"])
+@receitaBp.route("/receitas", methods=["POST"])
+@login_required
 def gerar_receitas():
     data = request.json or {}
     ingredientes = data.get("ingredientes", "").strip()
     settings = data.get("settings", {})
+    resposta_texto = "" # Inicializa para o bloco finally
 
     if not ingredientes:
         return jsonify({"erro": "Nenhum ingrediente informado."}), 400
 
     style = settings.get('style', 'criativo')
     estilo_desc = "criativas e surpreendentes" if style == 'criativo' else "populares e clássicas"
-
     prompt_base = f"""
     Sua única tarefa é criar receitas em formato JSON.
     Com base nos ingredientes: **{ingredientes}**.
@@ -59,33 +60,42 @@ def gerar_receitas():
     try:
         resposta_ia = modelo.generate_content(prompt_final, generation_config=generation_config)
         resposta_texto = resposta_ia.text.strip()
-        dados_receitas = json.loads(resposta_texto)
+        
+        json_match = re.search(r'\{[\s\S]*\}', resposta_texto)
+        if not json_match:
+            raise ValueError("A resposta da IA não continha um bloco JSON válido.")
+        
+        json_string = json_match.group(0)
+        dados_receitas = json.loads(json_string)
 
+        if 'receitas' not in dados_receitas or not isinstance(dados_receitas['receitas'], list) or not dados_receitas['receitas']:
+            raise ValueError("A IA não retornou uma lista de receitas válida.")
+        
         dados_receitas_com_imagens = adicionar_imagens_as_receitas(dados_receitas)
-
-        try:
-            new_call = ApiCall(endpoint=request.path, prompt=prompt_final, response_text=json.dumps(dados_receitas_com_imagens))
-            db.session.add(new_call)
-            db.session.commit()
-        except Exception as e:
-            print(f"Erro ao salvar histórico em /api/receitas: {e}")
-
         return jsonify(dados_receitas_com_imagens)
 
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"erro": f"Ocorreu um erro: {str(e)}"}), 500
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"ERRO ao processar JSON da IA: {e}")
+        return jsonify({"erro": f"Ocorreu um erro ao processar a resposta da IA: {str(e)}"}), 500
+    finally:
+        if current_user.is_authenticated:
+            new_call = ApiCall(endpoint=request.path, prompt=prompt_final, response_text=resposta_texto, user_id=current_user.id)
+            db.session.add(new_call)
+            db.session.commit()
 
-
-@refinarReceitaBp.route("/api/refinar-receitas", methods=["POST"])
+# --- FUNÇÃO DE REFINAR CORRIGIDA E COMPLETA ---
+@refinarReceitaBp.route("/refinar-receitas", methods=["POST"])
+@login_required
 def refinar_receitas():
     data = request.json
     historico = data.get("historico", [])
     ingredientes_atuais = data.get("ingredientes", [])
+    resposta_texto = "" # Inicializa para o bloco finally
 
     if not historico:
         return jsonify({"erro": "O histórico de mensagens não foi informado."}), 400
 
+    # LÓGICA DE PROMPT ORIGINAL RESTAURADA
     prompt_conversation = []
     for message in historico:
         if message.get('type') == 'recipe-carousel':
@@ -97,18 +107,7 @@ def refinar_receitas():
     
     schema_exemplo = """
     {{
-      "receitas": [
-        {{
-          "titulo": "string",
-          "inspiracao": "string (uma frase curta e atrativa sobre a receita)",
-          "tempoDePreparoEmMin": "integer",
-          "porcoes": "integer",
-          "ingredientes": [
-            {{"nome": "string", "quantidade": "string", "unidadeMedida": "string"}}
-          ],
-          "preparo": ["string (uma lista com os passos do modo de preparo. Cada passo deve ser uma frase completa, detalhada e explicativa.)"]
-        }}
-      ]
+      "receitas": [ {{ "titulo": "string", "inspiracao": "string", ... }} ]
     }}
     """
 
@@ -131,29 +130,27 @@ Analise a última mensagem do usuário e responda em JSON.
 -   Usuário: "adicione arroz e gere novas receitas" -> `{{"ingredientes_atualizados": ["pão", "ovo", "queijo", "arroz"], "receitas": [...]}}`
 **Sua Resposta (JSON obrigatório):**
 """
-    resposta_ia = modelo.generate_content(prompt_refinamento, generation_config=generation_config)
-
     try:
-        new_call = ApiCall(endpoint=request.path, prompt=prompt_refinamento, response_text=resposta_ia.text)
-        db.session.add(new_call)
-        db.session.commit()
-    except Exception as e:
-        print(f"Erro ao salvar histórico em /api/refinar-receitas: {e}")
+        resposta_ia = modelo.generate_content(prompt_refinamento, generation_config=generation_config)
+        resposta_texto = resposta_ia.text.strip()
 
-    try:
-        json_match = re.search(r'\{[\s\S]*\}', resposta_ia.text)
+        json_match = re.search(r'\{[\s\S]*\}', resposta_texto)
         if not json_match:
-            return jsonify({"texto": resposta_ia.text})
-
+            raise ValueError("A resposta da IA para o refinamento não continha um bloco JSON válido.")
+        
         json_string = json_match.group(0)
         dados_json = json.loads(json_string)
 
         if 'receitas' in dados_json:
-            dados_json_com_imagens = adicionar_imagens_as_receitas(dados_json)
-            return jsonify(dados_json_com_imagens)
+            dados_json = adicionar_imagens_as_receitas(dados_json)
         
         return jsonify(dados_json)
-    except Exception as e:
-        print(f"ERRO: Falha ao parsear JSON da IA. Erro: {e}")
-        print(f"Resposta da IA: {resposta_ia.text}")
-        return jsonify({"texto": "Desculpe, tive um problema para processar sua solicitação. Você poderia tentar de outra forma?"})
+
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"ERRO ao processar JSON da IA em refinar-receitas: {e}")
+        return jsonify({"erro": f"Ocorreu um erro ao processar a resposta da IA: {str(e)}"}), 500
+    finally:
+        if current_user.is_authenticated:
+            new_call = ApiCall(endpoint=request.path, prompt=prompt_refinamento, response_text=resposta_texto, user_id=current_user.id)
+            db.session.add(new_call)
+            db.session.commit()

@@ -6,14 +6,11 @@ from backend.utils.promptConfig import construir_prompt_com_settings
 from backend.core.database import db
 from backend.core.models import ApiCall
 
-# Cria um Blueprint para esta rota
 pesquisarBp = Blueprint("pesquisar", __name__)
 
-@pesquisarBp.route("/api/pesquisar", methods=["POST"])
+# CORREÇÃO: Removido o prefixo /api/.
+@pesquisarBp.route("/pesquisar", methods=["POST"])
 def pesquisar_receita():
-    """
-    Busca uma única receita pelo nome e a retorna em formato JSON estruturado.
-    """
     data = request.json or {}
     nome_receita = data.get("nome_receita", "").strip()
     settings = data.get("settings", {})
@@ -40,13 +37,11 @@ def pesquisar_receita():
     resposta = modelo.generate_content(prompt_final)
 
     try:
-        new_call = ApiCall(
-            endpoint=request.path,
-            prompt=prompt_final,
-            response_text=resposta.text
-        )
-        db.session.add(new_call)
-        db.session.commit()
+        # A lógica para salvar no histórico deve ser adicionada aqui se necessário
+        # Ex: new_call = ApiCall(...)
+        #     db.session.add(new_call)
+        #     db.session.commit()
+        pass
     except Exception as e:
         print(f"Erro ao salvar histórico em /api/pesquisar: {e}")
 
