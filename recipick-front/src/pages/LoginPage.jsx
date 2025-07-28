@@ -11,11 +11,14 @@ export function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // Impede o recarregamento da página
-    await login(email, password);
-    // Após o login (mesmo que mockado), o AuthContext terá o token,
-    // e o ProtectedRoute fará o redirecionamento automático.
-    // Adicionamos uma navegação explícita para garantir.
-    navigate('/'); 
+    
+    // Chama a função de login e guarda o resultado
+    const wasSuccessful = await login(email, password);
+
+    // Só navega para a página principal SE o login teve sucesso
+    if (wasSuccessful) {
+      navigate('/'); 
+    }
   };
 
   return (
@@ -45,7 +48,7 @@ export function LoginPage() {
             className="w-full rounded-full bg-primary p-3 text-center text-light font-semibold"
             disabled={loading}
           >
-            {loading ? 'Entrando...' : 'Continuar'}
+            {loading ? 'A entrar...' : 'Continuar'}
           </button>
         </form>
         <Link to="/welcome" className="mt-4 text-sm text-dark-light">
