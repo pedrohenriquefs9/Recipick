@@ -1,7 +1,6 @@
 from flask import jsonify, request, Blueprint
 import json
 import re
-import concurrent.futures
 from backend.services.gemini import modelo, generation_config
 from backend.services.image_search import buscar_imagem_receita
 from backend.utils.promptConfig import construir_prompt_com_settings
@@ -48,8 +47,8 @@ def gerar_receitas():
     if not ingredientes or not user_message_data:
         return jsonify({"erro": "Dados insuficientes para gerar receita."}), 400
 
-    chat = Chat.query.get(chat_id) if chat_id else None
-    if chat_id and (not chat or chat.user_id != current_user.id):
+    chat = Chat.query.get(chat_id) if chat_id and not str(chat_id).startswith('local-') else None
+    if chat_id and not str(chat_id).startswith('local-') and (not chat or chat.user_id != current_user.id):
         return jsonify({"erro": "Chat não encontrado ou não autorizado."}), 404
     
     style = settings.get('style', 'criativo')

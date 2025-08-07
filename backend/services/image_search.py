@@ -2,16 +2,11 @@ import requests
 import os
 from backend.services.gemini import modelo
 
-# Cache para armazenar URLs de imagens e evitar buscas repetidas.
 _IMAGE_CACHE = {}
 
-# Lista de categorias disponíveis na Foodish API
 CATEGORIAS_FOODISH = ["biryani", "burger", "butter-chicken", "dessert", "dosa", "idly", "pasta", "pizza", "rice", "samosa"]
 
 def _mapear_receita_para_categoria(titulo_receita: str) -> str:
-    """
-    Usa o Gemini Pro para mapear o título de uma receita para a categoria mais relevante da Foodish API.
-    """
     prompt = f"""
     Sua única tarefa é classificar o título da receita a seguir em uma das categorias disponíveis.
     As categorias são: {", ".join(CATEGORIAS_FOODISH)}.
@@ -30,20 +25,15 @@ def _mapear_receita_para_categoria(titulo_receita: str) -> str:
     try:
         resposta_ia = modelo.generate_content(prompt)
         categoria = resposta_ia.text.strip().lower()
-        # Garante que a resposta da IA seja uma das categorias válidas
         return categoria if categoria in CATEGORIAS_FOODISH else "burger"
     except Exception as e:
         print(f"ERRO ao mapear categoria com IA para '{titulo_receita}': {e}")
-        return "burger" # Retorna um padrão em caso de erro
+        return "burger"
 
 def buscar_imagem_receita(titulo_receita: str):
-    """
-    Busca uma imagem de receita na Foodish API, mapeando o título para uma categoria relevante.
-    """
     if not titulo_receita or not isinstance(titulo_receita, str):
         return None
 
-    # Usa o título como chave do cache para evitar reprocessamento
     if titulo_receita in _IMAGE_CACHE:
         return _IMAGE_CACHE[titulo_receita]
 

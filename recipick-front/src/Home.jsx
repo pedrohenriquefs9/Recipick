@@ -30,7 +30,7 @@ export function Home() {
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingChatIds, setLoadingChatIds] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const mainContainerRef = useRef(null);
   const [canRegenerate, setCanRegenerate] = useState(false);
@@ -40,19 +40,18 @@ export function Home() {
 
   const activeChat = chats.find(c => c.id === activeChatId);
   const chatToEdit = chats.find(c => c.id === editingChatId);
+  const isCurrentChatLoading = activeChatId ? loadingChatIds.includes(activeChatId) : false;
 
   useEffect(() => {
     const lastMessage = activeChat?.messages[activeChat.messages.length - 1];
     if (lastMessage?.type === 'recipe-carousel') {
       const recipes = lastMessage.content;
-
       if (!Array.isArray(recipes)) {
         console.error("Conteúdo da mensagem de receitas não é um array:", recipes);
         return;
       }
-
       recipes.forEach((recipe, index) => {
-        if (!recipe.imagemUrl && (recipe.queryBuscaImagem || recipe.titulo)) {
+        if (!recipe.imagemUrl && recipe.titulo) {
           api.post('/buscar-imagem', { titulo: recipe.titulo })
             .then(response => {
               const imageUrl = response.data.imageUrl;
@@ -79,7 +78,6 @@ export function Home() {
 
   useEffect(() => {
     const fetchChats = async () => {
-      setIsLoading(true);
       try {
         const response = await api.get('/chats');
         if (response.data && response.data.length > 0) {
@@ -108,8 +106,6 @@ export function Home() {
         const newChat = createNewChat();
         setChats([newChat]);
         setActiveChatId(newChat.id);
-      } finally {
-        setIsLoading(false);
       }
     };
     fetchChats();
@@ -131,7 +127,7 @@ export function Home() {
         behavior: 'smooth',
       });
     }
-  }, [activeChat?.messages, isLoading]);
+  }, [activeChat?.messages, isCurrentChatLoading]);
 
   function handleAddIngredient(newIngredient) {
     if (!newIngredient || newIngredient.trim() === "") return;
@@ -165,9 +161,12 @@ export function Home() {
   };
 
   async function handleGenerateRecipes() {
-    if (!activeChat || activeChat.ingredients.length === 0) return;
-    setIsLoading(true);
+    if (!activeChat || isCurrentChatLoading || activeChat.ingredients.length === 0) return;
+    
+    const currentChatId = activeChat.id;
+    setLoadingChatIds(prev => [...prev, currentChatId]);
     setCanRegenerate(false);
+
     const userMessageContent = activeChat.ingredients.join(", ");
     const userMessage = { role: "user", content: userMessageContent, type: 'text' };
     
@@ -178,7 +177,7 @@ export function Home() {
         ingredientes: userMessageContent.split(', '),
       });
       const response = await api.post("/receitas", {
-        chatId: activeChat.id.toString().startsWith('local-') ? null : activeChat.id,
+        chatId: currentChatId.toString().startsWith('local-') ? null : currentChatId,
         ingredientes: normalizedData.ingredientes_normalizados.filter((i) => i.trim() !== "").join(", "),
         settings: activeChat.settings,
         userMessage: userMessage,
@@ -190,31 +189,42 @@ export function Home() {
           role: 'assistant', content: recipes, type: 'recipe-carousel'
       };
 
+      let finalChatId = data.chatId;
       setChats(prevChats => prevChats.map(chat => {
-          if (chat.id === activeChatId || (chat.id.toString().startsWith('local-') && activeChatId === chat.id)) {
-              return { ...chat, id: data.chatId, title: data.chatTitle, messages: [...chat.messages, newAssistantMessage] };
+          if (chat.id === currentChatId) {
+              return { ...chat, id: finalChatId, title: data.chatTitle, messages: [...chat.messages, newAssistantMessage] };
           }
           return chat;
       }));
-      setActiveChatId(data.chatId);
+      
+      if (activeChatId === currentChatId) {
+        setActiveChatId(finalChatId);
+      }
     } catch (error) {
       console.error("Erro ao gerar receitas:", error);
-      updateActiveChat(chat => ({
-        messages: [...chat.messages, { role: 'assistant', content: 'Desculpe, não consegui gerar as receitas. Tente novamente.', type: 'text' }]
+      setChats(prevChats => prevChats.map(chat => {
+        if (chat.id === currentChatId) {
+          return { ...chat, messages: [...chat.messages, { role: 'assistant', content: 'Desculpe, não consegui gerar as receitas. Tente novamente.', type: 'text' }] };
+        }
+        return chat;
       }));
     } finally {
-      setIsLoading(false);
+      setLoadingChatIds(prev => prev.filter(id => id !== currentChatId && id !== activeChatId));
     }
   }
   
   async function handleRefineRecipes(messageText) {
-    if (!activeChat || activeChat.id.toString().startsWith('local-')) return;
+    if (!activeChat || isCurrentChatLoading || activeChat.id.toString().startsWith('local-')) return;
+    
+    const currentChatId = activeChat.id;
+    setLoadingChatIds(prev => [...prev, currentChatId]);
+
     const userMessage = { role: "user", content: messageText, type: 'text' };
     updateActiveChat(chat => ({ messages: [...chat.messages, userMessage] }));
-    setIsLoading(true);
+
     try {
       const response = await api.post("/refinar-receitas", { 
-        chatId: activeChat.id, historico: [...activeChat.messages, userMessage], ingredientes: activeChat.ingredients, userMessage: userMessage
+        chatId: currentChatId, historico: [...activeChat.messages, userMessage], ingredientes: activeChat.ingredients, userMessage: userMessage
       });
       const data = response.data;
       let newMessages = [];
@@ -228,8 +238,11 @@ export function Home() {
       if (data && Array.isArray(data.receitas)) {
         newMessages.push({ role: 'assistant', content: data.receitas, type: 'recipe-carousel' });
       }
-      updateActiveChat(chat => ({
-        ingredients: updatedIngredients, messages: [...chat.messages, ...newMessages]
+      setChats(prev => prev.map(chat => {
+        if (chat.id === currentChatId) {
+          return { ...chat, ingredients: updatedIngredients, messages: [...chat.messages, ...newMessages] };
+        }
+        return chat;
       }));
     } catch (error) {
       console.error("Erro ao refinar receitas:", error);
@@ -237,12 +250,12 @@ export function Home() {
         messages: [...chat.messages, { role: 'assistant', content: 'Ops, algo deu errado. Não consegui processar sua mensagem.', type: 'text' }]
       }));
     } finally {
-      setIsLoading(false);
+      setLoadingChatIds(prev => prev.filter(id => id !== currentChatId));
     }
   }
 
   function handleOnSend(message) {
-    if (!activeChat) return;
+    if (!activeChat || isCurrentChatLoading) return;
     const isChatStarted = activeChat.messages.length > 0;
     if (isChatStarted) { handleRefineRecipes(message); } 
     else { handleAddIngredient(message); }
@@ -332,6 +345,12 @@ export function Home() {
 
   return (
     <div className="flex h-dvh bg-bg">
+       {isSidebarOpen && (
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+        />
+       )}
        <Sidebar
         chats={chats} activeChatId={activeChatId} onNewChat={handleNewChat} onSelectChat={handleSelectChat}
         onFavoriteChat={handleFavoriteChat} onRemoveChat={handleRemoveChat} onOpenSettings={handleOpenSettings}
@@ -340,20 +359,26 @@ export function Home() {
         onRenameChat={handleRenameChat}
         onSaveChatTitle={handleSaveChatTitle}
       />
-      {/* --- ALTERAÇÃO AQUI: Adicionadas as classes w-full e min-w-0 --- */}
       <div className="flex flex-col flex-grow items-center justify-between w-full min-w-0">
+        {chatToEdit && (
+          <SettingsModal
+            isOpen={!!editingChatId} onClose={() => setEditingChatId(null)}
+            settings={chatToEdit.settings} onSettingChange={handleSettingsChange}
+          />
+        )}
+        <RecipeDetail recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)} />
         <Header 
           isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} onLogout={logout}
         />
         
         {isChatStarted && activeChat.ingredients.length > 0 && (
-          <div className="w-full max-w-2xl mt-4 px-4">
+          <div className="w-full max-w-2xl mt-4 px-2 md:px-4">
             <ParametersChips params={activeChat.ingredients} editable={true} onRemove={handleRemoveIngredient} />
           </div>
         )}
 
-        <main ref={mainContainerRef} className="flex flex-col items-center w-full h-full my-4 overflow-y-auto px-4">
-          {!isChatStarted && !isLoading ? (
+        <main ref={mainContainerRef} className="flex flex-col items-center w-full h-full my-4 overflow-y-auto px-2 md:px-4">
+          {!isChatStarted && !isCurrentChatLoading ? (
             <div className="flex flex-col items-center justify-center text-center h-full">
               <div className="flex flex-col items-center justify-center gap-4">
                 <Hello name={user?.name} />
@@ -378,7 +403,7 @@ export function Home() {
                 }
                 return null;
               })}
-              {isLoading && (
+              {isCurrentChatLoading && (
                 <div className="flex items-center justify-center w-12 h-12">
                    <div className="rounded-full h-4 w-4 bg-solid animate-ping"></div>
                 </div>
@@ -387,14 +412,14 @@ export function Home() {
           )}
         </main>
 
-        <div className="w-full max-w-2xl mb-2 px-4">
+        <div className="w-full max-w-2xl mb-2 px-2 md:px-4">
           <div className="flex flex-col items-end justify-center gap-4 w-full mt-auto">
-             {showContinueButton && (
-              <PrimaryButton onClick={handleGenerateRecipes} disabled={isLoading}>
+             {showContinueButton && !isCurrentChatLoading && (
+              <PrimaryButton onClick={handleGenerateRecipes}>
                 Continuar
               </PrimaryButton>
             )}
-            <MessageInput placeholder={!isChatStarted ? "Digite um ingrediente..." : "Peça uma alteração ou faça uma pergunta..."} disabled={isLoading} onSend={handleOnSend} />
+            <MessageInput placeholder={!isChatStarted ? "Digite um ingrediente..." : "Peça uma alteração ou faça uma pergunta..."} disabled={isCurrentChatLoading} onSend={handleOnSend} />
           </div>
         </div>
       </div>

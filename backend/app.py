@@ -3,6 +3,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from backend.core.database import db
 from flask_login import LoginManager
+# Importando os modelos para que o SQLAlchemy saiba quais tabelas criar
 from backend.core.userModel import User
 from backend.core.models import Chat, Message, ApiCall
 from dotenv import load_dotenv
@@ -13,6 +14,7 @@ def create_app():
     DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
     app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
 
+    # --- Configurações da Aplicação ---
     allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     CORS(app, origins=allowed_origins, supports_credentials=True)
 
@@ -22,6 +24,7 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     app.config['SESSION_COOKIE_SECURE'] = True
 
+    # --- Inicialização de Extensões ---
     db.init_app(app)
     
     login_manager = LoginManager()
@@ -58,6 +61,7 @@ def create_app():
     app.register_blueprint(chat_bp, url_prefix='/api')
     app.register_blueprint(main_bp)
 
+    # --- Criação das Tabelas do Banco de Dados ---
     with app.app_context():
         db.create_all()
 
@@ -66,5 +70,4 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     port = int(os.environ.get('PORT', 5000))
-    # Executando sem debug em produção, mas para desenvolvimento local, debug=True é útil.
     app.run(host='0.0.0.0', port=port, debug=True)

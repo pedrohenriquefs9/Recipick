@@ -1,12 +1,10 @@
 from flask import Blueprint, request, jsonify
 from backend.core.database import db
 from backend.core.userModel import User
-import bcrypt 
 import re
 
 registerBp = Blueprint('register', __name__)
 
-# Expressão regular para validar um formato de e-mail comum
 EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
 @registerBp.route('/auth/registrar', methods=['POST'])
@@ -23,21 +21,16 @@ def register():
         if not name or not email or not password:
             return jsonify({"error": "Nome, email e senha são obrigatórios"}), 400
 
-        # Valida o formato do e-mail usando a expressão regular
         if not re.match(EMAIL_REGEX, email):
             return jsonify({"error": "Formato de e-mail inválido."}), 400
 
-        # Valida o comprimento da senha
         if not (6 <= len(password) <= 14):
             return jsonify({"error": "A senha deve ter entre 6 e 14 caracteres."}), 400
-        # --- FIM DAS VALIDAÇÕES ---
 
         if User.query.filter((User.email == email) | (User.name == name)).first():
             return jsonify({"error": "Utilizador com este email ou nome já existe"}), 409
 
-        # Cria a instância do utilizador
         new_user = User(name=name, email=email)
-        # Define a senha usando o método do modelo, que irá hashear e atribuir a password_hash
         new_user.set_password(password)
 
         db.session.add(new_user)
