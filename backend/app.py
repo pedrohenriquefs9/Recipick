@@ -1,29 +1,26 @@
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
 from backend.core.database import db
 from flask_login import LoginManager
 from backend.core.userModel import User
+from backend.core.models import Chat, Message, ApiCall
 from dotenv import load_dotenv
 
-load_dotenv() 
+load_dotenv()
 
 def create_app():
     DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
     app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
 
-    # Revertendo para uma configuração de CORS mais simples
     allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     CORS(app, origins=allowed_origins, supports_credentials=True)
 
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///history.db')
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'sua_chave_secreta_muito_segura_aqui')
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'uma_chave_secreta_muito_segura')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-    # Configura o cookie de sessão para funcionar entre domínios diferentes (Render <-> Vercel)
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     app.config['SESSION_COOKIE_SECURE'] = True
-    # ------------------------------------
 
     db.init_app(app)
     
@@ -38,6 +35,7 @@ def create_app():
     def load_user(user_id):
         return User.query.get(int(user_id))
     
+    # --- Registro de Blueprints (Rotas) ---
     from backend.routes.normalizar_ingredientes import normalizarBp
     from backend.routes.pesquisar import pesquisarBp
     from backend.routes.receitas import receitaBp, refinarReceitaBp
@@ -46,6 +44,7 @@ def create_app():
     from backend.routes.login import loginBp, logoutBp
     from backend.routes.registrar import registerBp
     from backend.routes.session import sessionBp
+    from backend.routes.chat import chat_bp
 
     app.register_blueprint(registerBp, url_prefix='/api')
     app.register_blueprint(loginBp, url_prefix='/api')
@@ -56,6 +55,7 @@ def create_app():
     app.register_blueprint(pesquisarBp, url_prefix='/api')
     app.register_blueprint(receitaBp, url_prefix='/api')
     app.register_blueprint(refinarReceitaBp, url_prefix='/api')
+    app.register_blueprint(chat_bp, url_prefix='/api')
     app.register_blueprint(main_bp)
 
     with app.app_context():
@@ -66,5 +66,5 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     port = int(os.environ.get('PORT', 5000))
-    # Revertendo para a execução simples, sem SSL
+    # Executando sem debug em produção, mas para desenvolvimento local, debug=True é útil.
     app.run(host='0.0.0.0', port=port, debug=True)
