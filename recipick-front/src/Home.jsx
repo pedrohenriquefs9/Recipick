@@ -340,14 +340,8 @@ export function Home() {
         onRenameChat={handleRenameChat}
         onSaveChatTitle={handleSaveChatTitle}
       />
-      <div className="flex flex-col flex-grow items-center justify-between">
-        {chatToEdit && (
-          <SettingsModal
-            isOpen={!!editingChatId} onClose={() => setEditingChatId(null)}
-            settings={chatToEdit.settings} onSettingChange={handleSettingsChange}
-          />
-        )}
-        <RecipeDetail recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)} />
+      {/* --- ALTERAÇÃO AQUI: Adicionadas as classes w-full e min-w-0 --- */}
+      <div className="flex flex-col flex-grow items-center justify-between w-full min-w-0">
         <Header 
           isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} onLogout={logout}
         />
