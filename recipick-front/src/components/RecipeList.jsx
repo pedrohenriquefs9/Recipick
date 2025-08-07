@@ -1,5 +1,5 @@
 import React from 'react';
-import { RecipeCard } from './RecipeDetail';
+import { RecipeCard } from './RecipeCard';
 
 export function RecipeList({ recipes }) {
   if (!Array.isArray(recipes) || recipes.length === 0) {

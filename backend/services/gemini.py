@@ -18,4 +18,4 @@ generation_config = genai.types.GenerationConfig(
     response_mime_type="application/json"
 )
 
-modelo = genai.GenerativeModel("gemini-1.5-flash")
+modelo = genai.GenerativeModel("gemini-1.5-pro")

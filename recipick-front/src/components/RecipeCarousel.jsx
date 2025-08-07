@@ -14,24 +14,30 @@ export function RecipeCarousel({ recipes, onSelectRecipe }) {
 
   const handleMouseDown = (e) => {
     setIsDown(true);
-    carouselRef.current.classList.add('active');
-    setStartX(e.pageX - carouselRef.current.offsetLeft);
-    setScrollLeft(carouselRef.current.scrollLeft);
+    if (carouselRef.current) {
+      carouselRef.current.classList.add('active');
+      setStartX(e.pageX - carouselRef.current.offsetLeft);
+      setScrollLeft(carouselRef.current.scrollLeft);
+    }
     setIsDragging(false);
   };
 
   const handleMouseLeave = () => {
     setIsDown(false);
-    carouselRef.current.classList.remove('active');
+    if (carouselRef.current) {
+      carouselRef.current.classList.remove('active');
+    }
   };
 
   const handleMouseUp = () => {
     setIsDown(false);
-    carouselRef.current.classList.remove('active');
+    if (carouselRef.current) {
+      carouselRef.current.classList.remove('active');
+    }
   };
 
   const handleMouseMove = (e) => {
-    if (!isDown) return;
+    if (!isDown || !carouselRef.current) return;
     e.preventDefault();
     setIsDragging(true);
     const x = e.pageX - carouselRef.current.offsetLeft;
@@ -50,7 +56,6 @@ export function RecipeCarousel({ recipes, onSelectRecipe }) {
     <div className="w-full">
       <p className="text-dark-light mb-4">Beleza! Com base nisso, tenho algumas sugestões:</p>
       <div
-        // Adicionada a classe 'select-none' para impedir a seleção de texto
         className="flex gap-4 overflow-x-auto pb-4 cursor-grab select-none"
         ref={carouselRef}
         onMouseDown={handleMouseDown}

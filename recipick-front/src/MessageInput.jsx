@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-
 import { PlusIcon } from "@heroicons/react/16/solid";
-import { CameraIcon } from "@heroicons/react/24/outline";
+
+// --- ALTERAÇÃO 1: Importação do CameraIcon foi removida ---
+// import { CameraIcon } from "@heroicons/react/24/outline";
 
 export function MessageInput({
   onSend,
@@ -33,13 +34,8 @@ export function MessageInput({
         onSubmit={handleSubmit}
         className="flex items-center justify-between gap-2 w-full"
       >
-        <button
-          type="button"
-          aria-label="Attach photo"
-          className="flex flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-solid p-1 h-12 w-12"
-        >
-          <CameraIcon className="text-black w-7 h-7" />
-        </button>
+        {}
+
         <div className="flex justify-between items-center w-full gap-1 text-black bg-solid rounded-full px-3 py-2">
           <input
             ref={inputRef}

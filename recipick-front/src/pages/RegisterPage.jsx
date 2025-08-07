@@ -3,31 +3,56 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../components/AuthLayout';
 import { useAuth } from '../auth/AuthContext';
 
+// Regex para validação de e-mail no frontend
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function RegisterPage() {
-  const [step, setStep] = useState(1); // 1: nome, 2: email/senha
+  const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
-  const { register, loading, error } = useAuth();
+  const [formError, setFormError] = useState('');
+  
+  // Renomeando 'error' do useAuth para 'apiError' para evitar conflitos
+  const { register, loading, error: apiError } = useAuth();
   const navigate = useNavigate();
 
   const handleNextStep = (e) => {
     e.preventDefault();
     if (name.trim() !== '') {
+      setFormError(''); // Limpa erros anteriores
       setStep(2);
+    } else {
+      setFormError('Por favor, insira seu nome.');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      alert("As senhas não coincidem!");
+    setFormError(''); // Limpa erros de formulário antes de submeter
+
+    // --- ALTERAÇÃO 2: Adicionar validações no frontend ---
+    if (!EMAIL_REGEX.test(email)) {
+      setFormError("Por favor, insira um e-mail válido.");
       return;
     }
-    await register(name, email, password);
-    navigate('/');
+    if (password.length < 6 || password.length > 14) {
+      setFormError("A senha deve ter entre 6 e 14 caracteres.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setFormError("As senhas não coincidem!");
+      return;
+    }
+    // --- FIM DA VALIDAÇÃO ---
+
+    const wasSuccessful = await register(name, email, password);
+    if (wasSuccessful) {
+        navigate('/');
+    }
+    // Se 'register' retornar false, o 'apiError' no hook useAuth será exibido
   };
 
   return (
@@ -45,6 +70,8 @@ export function RegisterPage() {
                 className="w-full rounded-full bg-solid p-3 text-center text-black outline-none"
                 required
               />
+              {/* Exibe erro de validação do passo 1 */}
+              {formError && <p className="text-red-500 text-sm">{formError}</p>}
               <button type="submit" className="w-full rounded-full bg-primary p-3 text-center text-light font-semibold">
                 Continuar
               </button>
@@ -80,7 +107,8 @@ export function RegisterPage() {
                 className="w-full rounded-full bg-solid p-3 text-center text-black outline-none"
                 required
               />
-              {error && <p className="text-red-500 text-sm">{error}</p>}
+              {/* --- ALTERAÇÃO 3: Exibir o erro de validação do formulário OU o erro vindo da API --- */}
+              {(formError || apiError) && <p className="text-red-500 text-sm">{formError || apiError}</p>}
               <button 
                 type="submit" 
                 className="w-full rounded-full bg-primary p-3 text-center text-light font-semibold"
