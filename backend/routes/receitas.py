@@ -1,58 +1,73 @@
 from flask import jsonify, request, Blueprint
 import json
-import traceback
 import re
+import concurrent.futures
 from backend.services.gemini import modelo, generation_config
 from backend.services.image_search import buscar_imagem_receita
 from backend.utils.promptConfig import construir_prompt_com_settings
 from backend.core.database import db
-from backend.core.models import ApiCall
+from backend.core.models import Chat, Message
 from flask_login import login_required, current_user
 
 receitaBp = Blueprint("receita", __name__)
 refinarReceitaBp = Blueprint("refinar_receita", __name__)
 
+@receitaBp.route("/buscar-imagem", methods=["POST"])
+@login_required
+def buscar_imagem_endpoint():
+    data = request.json or {}
+    titulo = data.get("titulo")
+    if not titulo:
+        return jsonify({"error": "Nenhum título fornecido."}), 400
+    
+    image_url = buscar_imagem_receita(titulo)
+    
+    if image_url:
+        return jsonify({"imageUrl": image_url})
+    else:
+        return jsonify({"error": "Imagem não encontrada."}), 404
 
-def adicionar_imagens_as_receitas(receitas_obj):
-    if 'receitas' in receitas_obj and isinstance(receitas_obj.get('receitas'), list):
-        for receita in receitas_obj['receitas']:
-            if 'titulo' in receita:
-                imagem_url = buscar_imagem_receita(receita['titulo'])
-                receita['imagemUrl'] = imagem_url
-    return receitas_obj
-
+def validar_receitas_da_ia(dados_receitas):
+    if 'receitas' not in dados_receitas or not isinstance(dados_receitas['receitas'], list):
+        raise ValueError("A IA não retornou uma lista de receitas válida.")
+    for receita in dados_receitas['receitas']:
+        required_keys = ['titulo', 'ingredientes', 'preparo']
+        if not isinstance(receita, dict) or not all(k in receita for k in required_keys):
+            raise ValueError("A IA retornou uma receita com formato inválido.")
+    return dados_receitas
 
 @receitaBp.route("/receitas", methods=["POST"])
 @login_required
 def gerar_receitas():
     data = request.json or {}
+    chat_id = data.get("chatId")
     ingredientes = data.get("ingredientes", "").strip()
     settings = data.get("settings", {})
-    resposta_texto = "" # Inicializa para o bloco finally
+    user_message_data = data.get("userMessage")
 
-    if not ingredientes:
-        return jsonify({"erro": "Nenhum ingrediente informado."}), 400
+    if not ingredientes or not user_message_data:
+        return jsonify({"erro": "Dados insuficientes para gerar receita."}), 400
 
+    chat = Chat.query.get(chat_id) if chat_id else None
+    if chat_id and (not chat or chat.user_id != current_user.id):
+        return jsonify({"erro": "Chat não encontrado ou não autorizado."}), 404
+    
     style = settings.get('style', 'criativo')
     estilo_desc = "criativas e surpreendentes" if style == 'criativo' else "populares e clássicas"
+    
     prompt_base = f"""
-    Sua única tarefa é criar receitas em formato JSON.
-    Com base nos ingredientes: **{ingredientes}**.
-    Gere um objeto JSON com a chave "receitas". O valor dessa chave DEVE ser uma lista contendo EXATAMENTE 5 sugestões de receitas **{estilo_desc}**.
-    O JSON de saída deve seguir exatamente este schema:
+    Sua tarefa é gerar uma resposta JSON com uma lista de receitas com base nos ingredientes: **{ingredientes}**.
+    O JSON de saída deve ter UMA chave no nível raiz: "receitas".
+    O valor de "receitas" deve ser uma lista de EXATAMENTE 5 sugestões de receitas {estilo_desc}.
+
+    Cada objeto na lista "receitas" DEVE seguir este schema:
     {{
-      "receitas": [
-        {{
-          "titulo": "string",
-          "inspiracao": "string (uma frase curta e atrativa sobre a receita)",
-          "tempoDePreparoEmMin": "integer",
-          "porcoes": "integer",
-          "ingredientes": [
-            {{"nome": "string", "quantidade": "string", "unidadeMedida": "string"}}
-          ],
-          "preparo": ["string (uma lista com os passos do modo de preparo. Cada passo deve ser uma frase completa, detalhada e explicativa.)"]
-        }}
-      ]
+        "titulo": "string",
+        "inspiracao": "string",
+        "tempoDePreparoEmMin": "integer",
+        "porcoes": "integer",
+        "ingredientes": [{{ "nome": "string", "quantidade": "string", "unidadeMedida": "string" }}],
+        "preparo": ["string"]
     }}
     """
     prompt_final = construir_prompt_com_settings(prompt_base, settings)
@@ -60,97 +75,111 @@ def gerar_receitas():
     try:
         resposta_ia = modelo.generate_content(prompt_final, generation_config=generation_config)
         resposta_texto = resposta_ia.text.strip()
-        
         json_match = re.search(r'\{[\s\S]*\}', resposta_texto)
-        if not json_match:
-            raise ValueError("A resposta da IA não continha um bloco JSON válido.")
+        if not json_match: raise ValueError("A resposta da IA não continha um bloco JSON válido.")
         
-        json_string = json_match.group(0)
-        dados_receitas = json.loads(json_string)
-
-        if 'receitas' not in dados_receitas or not isinstance(dados_receitas['receitas'], list) or not dados_receitas['receitas']:
-            raise ValueError("A IA não retornou uma lista de receitas válida.")
+        dados_receitas = json.loads(json_match.group(0))
+        dados_receitas_validados = validar_receitas_da_ia(dados_receitas)
         
-        dados_receitas_com_imagens = adicionar_imagens_as_receitas(dados_receitas)
-        return jsonify(dados_receitas_com_imagens)
+        if not chat:
+            titulo_chat = dados_receitas_validados['receitas'][0]['titulo'] if dados_receitas_validados['receitas'] else "Novo Pedido"
+            chat = Chat(user_id=current_user.id, title=titulo_chat, settings=settings)
+            db.session.add(chat)
 
-    except (json.JSONDecodeError, ValueError) as e:
-        print(f"ERRO ao processar JSON da IA: {e}")
-        return jsonify({"erro": f"Ocorreu um erro ao processar a resposta da IA: {str(e)}"}), 500
-    finally:
-        if current_user.is_authenticated:
-            new_call = ApiCall(endpoint=request.path, prompt=prompt_final, response_text=resposta_texto, user_id=current_user.id)
-            db.session.add(new_call)
-            db.session.commit()
+        user_message = Message(chat=chat, role=user_message_data['role'], content=user_message_data['content'], type=user_message_data['type'])
+        db.session.add(user_message)
+        
+        assistant_message = Message(chat=chat, role='assistant', content=json.dumps(dados_receitas_validados['receitas']), type='recipe-carousel')
+        db.session.add(assistant_message)
+        db.session.commit()
 
-# --- FUNÇÃO DE REFINAR CORRIGIDA E COMPLETA ---
+        return jsonify({
+            "chatId": chat.id,
+            "chatTitle": chat.title,
+            "assistantMessage": {
+                "role": 'assistant',
+                "content": assistant_message.content,
+                "type": 'recipe-carousel'
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERRO ao processar e salvar receita: {e}")
+        return jsonify({"erro": f"Ocorreu um erro interno: {str(e)}"}), 500
+
 @refinarReceitaBp.route("/refinar-receitas", methods=["POST"])
 @login_required
 def refinar_receitas():
     data = request.json
+    chat_id = data.get("chatId")
     historico = data.get("historico", [])
     ingredientes_atuais = data.get("ingredientes", [])
-    resposta_texto = "" # Inicializa para o bloco finally
+    user_message_data = data.get("userMessage")
 
-    if not historico:
-        return jsonify({"erro": "O histórico de mensagens não foi informado."}), 400
+    if not all([chat_id, historico, user_message_data]):
+        return jsonify({"erro": "Dados insuficientes para refinar a receita."}), 400
 
-    # LÓGICA DE PROMPT ORIGINAL RESTAURADA
-    prompt_conversation = []
-    for message in historico:
-        if message.get('type') == 'recipe-carousel':
-            prompt_conversation.append(f"**Assistant:** [Exibi uma lista de receitas]")
-        else:
-            prompt_conversation.append(f"**{message['role'].capitalize()}:** {message['content']}")
+    chat = Chat.query.get(chat_id)
+    if not chat or chat.user_id != current_user.id:
+        return jsonify({"erro": "Chat não encontrado ou não autorizado."}), 404
+        
+    user_message = Message(chat_id=chat.id, role=user_message_data['role'], content=user_message_data['content'], type=user_message_data['type'])
+    db.session.add(user_message)
 
+    prompt_conversation = [f"**{ 'model' if msg['role'] == 'assistant' else 'user' }:** {'[O assistente exibiu uma lista de receitas]' if msg.get('type') == 'recipe-carousel' else msg['content']}" for msg in historico]
     historico_formatado = "\n".join(prompt_conversation)
     
     schema_exemplo = """
     {{
-      "receitas": [ {{ "titulo": "string", "inspiracao": "string", ... }} ]
+      "titulo": "string",
+      "inspiracao": "string", "tempoDePreparoEmMin": "integer",
+      "porcoes": "integer", "ingredientes": [{{ "nome": "string", "quantidade": "string", "unidadeMedida": "string" }}],
+      "preparo": ["string"]
     }}
     """
 
     prompt_refinamento = f"""
-Você é um assistente de culinária que gerencia uma lista de ingredientes e sugere receitas.
-**Ingredientes Atuais:** {json.dumps(ingredientes_atuais)}
-**Histórico da Conversa:**
+    Sua tarefa é analisar a última mensagem do usuário e decidir a ação correta, respondendo em JSON.
+    **Ingredientes Atuais:** {json.dumps(ingredientes_atuais)}
+    **Histórico da Conversa:**
 {historico_formatado}
-**Sua Tarefa:**
-Analise a última mensagem do usuário e responda em JSON.
-**Regras:**
-1.  **Modificar Ingredientes:** Se o usuário pedir para **adicionar ou remover** ingredientes, sua resposta DEVE conter a chave `"ingredientes_atualizados"` com a lista de ingredientes completa e corrigida.
-2.  **Gerar Receitas:** Se o usuário pedir para **gerar novas receitas**, sua resposta DEVE conter a chave `"receitas"` com uma lista de pelo menos 3 receitas baseadas nos ingredientes (seja os atuais ou os recém-modificados). Use este schema: `{schema_exemplo}`.
-3.  **Conversa Simples:** Se o usuário estiver apenas conversando (ex: "olá", "obrigado"), responda com a chave `"texto"`. Ex: `{{"texto": "De nada! Posso ajudar com mais alguma coisa?"}}`.
-4.  **Respostas Combinadas:** Se o usuário modificar ingredientes e pedir receitas na mesma frase (ex: "tire o queijo e me dê novas ideias"), sua resposta JSON deve conter AMBAS as chaves: `"ingredientes_atualizados"` e `"receitas"`.
-**Exemplos:**
--   Usuário: "pode adicionar cebola?" -> `{{"ingredientes_atualizados": ["pão", "ovo", "queijo", "cebola"], "texto": "Cebola adicionada!"}}`
--   Usuário: "não gostei, tire o pão" -> `{{"ingredientes_atualizados": ["ovo", "queijo"], "texto": "Pão removido. Quer que eu gere novas receitas com os ingredientes restantes?"}}`
--   Usuário: "me dê outras ideias com isso" -> `{{"receitas": [...]}}`
--   Usuário: "adicione arroz e gere novas receitas" -> `{{"ingredientes_atualizados": ["pão", "ovo", "queijo", "arroz"], "receitas": [...]}}`
-**Sua Resposta (JSON obrigatório):**
-"""
+    
+    **Regras de Decisão:**
+    1.  Se o usuário pedir para **adicionar/remover ingredientes**, sua resposta DEVE conter a chave `"ingredientes_atualizados"`.
+    2.  Se o usuário pedir por **novas receitas**, sua resposta DEVE conter a chave `"receitas"`.
+        - A lista de receitas DEVE ter **pelo menos 3 sugestões**.
+        - Cada objeto na lista DEVE seguir este schema: `{schema_exemplo}`.
+    3.  Se a mensagem for uma **conversa simples** (ex: "gostei"), responda APENAS com a chave `"texto"`.
+    4.  Se o usuário fizer as duas coisas (ex: "adicione tomate e gere novas receitas"), inclua ambas as chaves.
+    5.  **IMPORTANTE:** O JSON final DEVE ser sintaticamente perfeito.
+
+    **Sua Resposta (APENAS JSON VÁLIDO):**
+    """
+    
+    resposta_texto = ""
     try:
         resposta_ia = modelo.generate_content(prompt_refinamento, generation_config=generation_config)
         resposta_texto = resposta_ia.text.strip()
-
         json_match = re.search(r'\{[\s\S]*\}', resposta_texto)
-        if not json_match:
-            raise ValueError("A resposta da IA para o refinamento não continha um bloco JSON válido.")
+        if not json_match: raise ValueError("A resposta da IA para o refinamento não continha JSON.")
         
         json_string = json_match.group(0)
         dados_json = json.loads(json_string)
 
-        if 'receitas' in dados_json:
-            dados_json = adicionar_imagens_as_receitas(dados_json)
+        if 'texto' in dados_json:
+            assistant_text = Message(chat_id=chat.id, role='assistant', content=dados_json['texto'], type='text')
+            db.session.add(assistant_text)
         
+        if 'receitas' in dados_json:
+            assistant_recipes = Message(chat_id=chat.id, role='assistant', content=json.dumps(dados_json['receitas']), type='recipe-carousel')
+            db.session.add(assistant_recipes)
+            
+        db.session.commit()
         return jsonify(dados_json)
-
-    except (json.JSONDecodeError, ValueError) as e:
-        print(f"ERRO ao processar JSON da IA em refinar-receitas: {e}")
-        return jsonify({"erro": f"Ocorreu um erro ao processar a resposta da IA: {str(e)}"}), 500
-    finally:
-        if current_user.is_authenticated:
-            new_call = ApiCall(endpoint=request.path, prompt=prompt_refinamento, response_text=resposta_texto, user_id=current_user.id)
-            db.session.add(new_call)
-            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERRO ao processar e salvar refinamento: {e}")
+        print("--- RESPOSTA DA IA QUE CAUSOU O ERRO ---")
+        print(resposta_texto)
+        print("------------------------------------")
+        return jsonify({"erro": f"Ocorreu um erro interno: {str(e)}"}), 500
