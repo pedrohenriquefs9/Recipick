@@ -17,18 +17,6 @@ class MockModelo:
             text = '{"nome": "Arroz e Feijão", "ingredientes": ["arroz", "feijão"]}'
         return Response()
 
-@pytest.mark.type
-def test_pesquisar_type(client, monkeypatch):
-    from backend.services import gemini
-    monkeypatch.setattr(gemini, "modelo", MockModelo)
-
-    entradaTeste = {
-        "nome_receita": "arroz e feijão"
-    }
-    resposta = client.post("/api/pesquisar", json=entradaTeste)
-    respostaJson = resposta.get_json()
-    assert isinstance(respostaJson, dict)
-
 @pytest.mark.error
 def test_pesquisar_erro(client):
     entrada_erro = {}

@@ -10,7 +10,7 @@ def test_gemini_keyPresente():
 
 def test_gemini_modelo():
     assert isinstance(gemini.modelo, genai.GenerativeModel)
-    assert gemini.modelo.model_name == "models/gemini-1.5-flash"
+    assert gemini.modelo.model_name == "models/gemini-1.5-pro"
 
 
 def test_gemini_responseJson():
