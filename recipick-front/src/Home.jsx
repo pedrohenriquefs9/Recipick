@@ -86,19 +86,23 @@ export function Home() {
       try {
         const response = await api.get('/chats');
         if (response.data && response.data.length > 0) {
-          const parsedChats = response.data.map(chat => ({
-            ...chat,
-            messages: chat.messages.map(msg => {
-              if (msg.type === 'recipe-carousel' && typeof msg.content === 'string') {
-                try {
-                  return { ...msg, content: JSON.parse(msg.content) };
-                } catch (e) {
-                  return { ...msg, content: [] };
+          const parsedChats = response.data.map(chat => {
+            const firstUserMessage = chat.messages.find(msg => msg.role === 'user');
+            return {
+              ...chat,
+              ingredients: firstUserMessage ? firstUserMessage.content.split(', ') : [],
+              messages: chat.messages.map(msg => {
+                if (msg.type === 'recipe-carousel' && typeof msg.content === 'string') {
+                  try {
+                    return { ...msg, content: JSON.parse(msg.content) };
+                  } catch (e) {
+                    return { ...msg, content: [] };
+                  }
                 }
-              }
-              return msg;
-            })
-          }));
+                return msg;
+              })
+            };
+          });
           setChats(parsedChats);
           setActiveChatId(parsedChats[0].id);
         } else {
