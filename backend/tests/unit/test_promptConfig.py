@@ -1,28 +1,46 @@
-from backend.utils.promptConfig import construir_prompt_com_settings
+import pytest
+from backend.utils.promptConfig import construir_prompt_com_settings  # ajuste o caminho conforme necessário
 
-def test_promptConfig_vazio():
-    base = "Base prompt"
-    result = construir_prompt_com_settings(base, {})
-    assert result == base
+BASE_PROMPT = "Crie uma receita de massa."
 
-def test_promptConfig_normal():
-    base = "Base prompt"
+def test_prompt_sem_settings():
+    resultado = construir_prompt_com_settings(BASE_PROMPT, {})
+    assert resultado == BASE_PROMPT
+
+def test_prompt_com_portion_pequeno():
+    settings = {"portionSize": "pequeno"}
+    resultado = construir_prompt_com_settings(BASE_PROMPT, settings)
+    assert "uma porção pequena (individual)" in resultado
+
+def test_prompt_com_complexidade_rapida():
+    settings = {"complexity": "rapida"}
+    resultado = construir_prompt_com_settings(BASE_PROMPT, settings)
+    assert "uma receita rápida e simples" in resultado
+
+def test_prompt_com_dieta_vegan():
+    settings = {"diet": "vegan"}
+    resultado = construir_prompt_com_settings(BASE_PROMPT, settings)
+    assert "estritamente vegana" in resultado
+    assert "sem nenhum produto de origem animal" in resultado
+
+def test_prompt_com_todos_os_settings():
     settings = {
-        "portionSize": "grande",
+        "portionSize": "medio",
         "complexity": "elaborada",
-        "isVegetarian": True
+        "diet": "vegetarian"
     }
-    result = construir_prompt_com_settings(base, settings)
+    resultado = construir_prompt_com_settings(BASE_PROMPT, settings)
 
-    assert "uma porção grande (4+ pessoas)" in result
-    assert "uma receita mais elaborada" in result
-    assert "A receita DEVE ser estritamente vegetariana" in result
+    assert "uma porção média" in resultado
+    assert "mais elaborada e detalhada" in resultado
+    assert "estritamente vegetariana" in resultado
 
-def test_promptConfig_restrições():
-    base = "Base prompt"
+def test_prompt_com_valores_invalidos():
     settings = {
-        "restrictions": "glúten, lactose"
+        "portionSize": "gigante",
+        "complexity": "dificil",
+        "diet": "carnivoro"
     }
-    result = construir_prompt_com_settings(base, settings)
-    assert "NÃO PODE conter os seguintes ingredientes: glúten, lactose" in result
-
+    resultado = construir_prompt_com_settings(BASE_PROMPT, settings)
+    # Nenhuma instrução adicional deve ser adicionada
+    assert resultado == BASE_PROMPT
