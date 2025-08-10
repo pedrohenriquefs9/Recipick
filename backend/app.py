@@ -1,9 +1,8 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from backend.core.database import db
 from flask_login import LoginManager
-# Importando os modelos para que o SQLAlchemy saiba quais tabelas criar
 from backend.core.userModel import User
 from backend.core.models import Chat, Message, ApiCall
 from dotenv import load_dotenv
@@ -14,7 +13,6 @@ def create_app():
     DIST_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "../recipick-front/dist"))
     app = Flask(__name__, static_folder=DIST_FOLDER, static_url_path="/")
 
-    # --- Configurações da Aplicação ---
     allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     CORS(app, origins=allowed_origins, supports_credentials=True)
 
@@ -24,7 +22,6 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     app.config['SESSION_COOKIE_SECURE'] = True
 
-    # --- Inicialização de Extensões ---
     db.init_app(app)
     
     login_manager = LoginManager()
@@ -43,7 +40,6 @@ def create_app():
     from backend.routes.pesquisar import pesquisarBp
     from backend.routes.receitas import receitaBp, refinarReceitaBp
     from backend.routes.history import history_bp
-    from backend.routes.main import main_bp
     from backend.routes.login import loginBp, logoutBp
     from backend.routes.registrar import registerBp
     from backend.routes.session import sessionBp
@@ -59,9 +55,17 @@ def create_app():
     app.register_blueprint(receitaBp, url_prefix='/api')
     app.register_blueprint(refinarReceitaBp, url_prefix='/api')
     app.register_blueprint(chat_bp, url_prefix='/api')
-    app.register_blueprint(main_bp)
 
-    # --- Criação das Tabelas do Banco de Dados ---
+    # Esta rota lida com todas as outras requisições que não são para a API
+    # e serve a página principal do React, permitindo que o React Router funcione.
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve(path):
+        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+            return send_from_directory(app.static_folder, path)
+        else:
+            return send_from_directory(app.static_folder, 'index.html')
+
     with app.app_context():
         db.create_all()
 

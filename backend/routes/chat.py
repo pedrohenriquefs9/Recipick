@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from backend.core.database import db
-from backend.core.models import Chat
+from backend.core.models import Chat, Message, User
 from flask_login import login_required, current_user
 
 chat_bp = Blueprint('chat_bp', __name__)
@@ -8,6 +8,7 @@ chat_bp = Blueprint('chat_bp', __name__)
 @chat_bp.route('/chats', methods=['GET'])
 @login_required
 def get_user_chats():
+    """Retorna todos os chats e suas mensagens para o usuário logado."""
     user_chats = Chat.query.filter_by(user_id=current_user.id).order_by(Chat.created_at.desc()).all()
     
     chats_data = []
@@ -34,9 +35,31 @@ def get_user_chats():
         
     return jsonify(chats_data)
 
+# --- ALTERAÇÃO: Nova rota para atualizar o conteúdo de uma mensagem ---
+@chat_bp.route('/messages/<int:message_id>', methods=['PUT'])
+@login_required
+def update_message(message_id):
+    """Atualiza o conteúdo de uma mensagem específica."""
+    msg = Message.query.get_or_404(message_id)
+    chat = Chat.query.get_or_404(msg.chat_id)
+
+    # Verifica se o usuário logado é o dono do chat
+    if chat.user_id != current_user.id:
+        return jsonify({"error": "Acesso não autorizado"}), 403
+
+    data = request.json
+    if 'content' in data:
+        msg.content = data['content']
+        db.session.commit()
+        return jsonify({"message": "Mensagem atualizada com sucesso."}), 200
+    
+    return jsonify({"error": "Nenhum conteúdo fornecido."}), 400
+
+
 @chat_bp.route('/chats/<int:chat_id>/title', methods=['PUT'])
 @login_required
 def update_chat_title(chat_id):
+    """Atualiza apenas o título de um chat."""
     chat = Chat.query.get_or_404(chat_id)
     if chat.user_id != current_user.id:
         return jsonify({"error": "Acesso não autorizado"}), 403
@@ -54,6 +77,7 @@ def update_chat_title(chat_id):
 @chat_bp.route('/chats/<int:chat_id>', methods=['PUT'])
 @login_required
 def update_chat(chat_id):
+    """Atualiza um chat, como por exemplo, favoritá-lo ou alterar suas configurações."""
     chat = Chat.query.get_or_404(chat_id)
     if chat.user_id != current_user.id:
         return jsonify({"error": "Acesso não autorizado"}), 403
@@ -70,6 +94,7 @@ def update_chat(chat_id):
 @chat_bp.route('/chats/<int:chat_id>', methods=['DELETE'])
 @login_required
 def delete_chat(chat_id):
+    """Remove um chat e todas as suas mensagens."""
     chat = Chat.query.get_or_404(chat_id)
     if chat.user_id != current_user.id:
         return jsonify({"error": "Acesso não autorizado"}), 403

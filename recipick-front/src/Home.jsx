@@ -61,7 +61,12 @@ export function Home() {
                     if (msgIndex === chat.messages.length - 1) {
                       const updatedRecipes = [...msg.content];
                       updatedRecipes[index].imagemUrl = imageUrl;
-                      return { ...msg, content: updatedRecipes };
+                      const updatedMessage = { ...msg, content: updatedRecipes };
+                      if (msg.id && !msg.id.toString().startsWith('local-')) {
+                        api.put(`/messages/${msg.id}`, { content: JSON.stringify(updatedRecipes) })
+                          .catch(err => console.error("Falha ao salvar URL no DB:", err));
+                      }
+                      return updatedMessage;
                     }
                     return msg;
                   });
@@ -170,14 +175,14 @@ export function Home() {
     const userMessageContent = activeChat.ingredients.join(", ");
     const userMessage = { role: "user", content: userMessageContent, type: 'text' };
     
-    updateActiveChat(chat => ({ messages: [userMessage] }));
+    updateActiveChat(chat => ({ messages: [...chat.messages, userMessage] }));
 
     try {
       const { data: normalizedData } = await api.post("/normalizar-ingredientes", {
         ingredientes: userMessageContent.split(', '),
       });
       const response = await api.post("/receitas", {
-        chatId: currentChatId.toString().startsWith('local-') ? null : currentChatId,
+        chatId: currentChatId,
         ingredientes: normalizedData.ingredientes_normalizados.filter((i) => i.trim() !== "").join(", "),
         settings: activeChat.settings,
         userMessage: userMessage,
@@ -186,13 +191,17 @@ export function Home() {
       
       const recipes = JSON.parse(data.assistantMessage.content);
       const newAssistantMessage = {
-          role: 'assistant', content: recipes, type: 'recipe-carousel'
+          id: data.assistantMessage.id,
+          role: 'assistant', 
+          content: recipes, 
+          type: 'recipe-carousel'
       };
 
       let finalChatId = data.chatId;
       setChats(prevChats => prevChats.map(chat => {
           if (chat.id === currentChatId) {
-              return { ...chat, id: finalChatId, title: data.chatTitle, messages: [...chat.messages, newAssistantMessage] };
+              const currentMessages = chat.messages.filter(m => m.role !== 'user' || m.content !== userMessageContent);
+              return { ...chat, id: finalChatId, title: data.chatTitle, messages: [...currentMessages, newAssistantMessage] };
           }
           return chat;
       }));
@@ -204,12 +213,12 @@ export function Home() {
       console.error("Erro ao gerar receitas:", error);
       setChats(prevChats => prevChats.map(chat => {
         if (chat.id === currentChatId) {
-          return { ...chat, messages: [...chat.messages, { role: 'assistant', content: 'Desculpe, não consegui gerar as receitas. Tente novamente.', type: 'text' }] };
+          return { ...chat, messages: [...chat.messages.slice(0, -1), { role: 'assistant', content: 'Desculpe, não consegui gerar as receitas. Tente novamente.', type: 'text' }] };
         }
         return chat;
       }));
     } finally {
-      setLoadingChatIds(prev => prev.filter(id => id !== currentChatId && id !== activeChatId));
+      setLoadingChatIds(prev => prev.filter(id => id !== currentChatId && id !== (activeChat?.id || currentChatId)));
     }
   }
   
@@ -217,6 +226,7 @@ export function Home() {
     if (!activeChat || isCurrentChatLoading || activeChat.id.toString().startsWith('local-')) return;
     
     const currentChatId = activeChat.id;
+    setCanRegenerate(false);
     setLoadingChatIds(prev => [...prev, currentChatId]);
 
     const userMessage = { role: "user", content: messageText, type: 'text' };
@@ -233,10 +243,10 @@ export function Home() {
         updatedIngredients = data.ingredientes_atualizados;
       }
       if (data && typeof data.texto === 'string') {
-        newMessages.push({ role: 'assistant', content: data.texto, type: 'text' });
+        newMessages.push({ role: 'assistant', content: data.texto, type: 'text', id: data.assistantMessage?.id });
       }
       if (data && Array.isArray(data.receitas)) {
-        newMessages.push({ role: 'assistant', content: data.receitas, type: 'recipe-carousel' });
+        newMessages.push({ role: 'assistant', content: data.receitas, type: 'recipe-carousel', id: data.assistantMessage?.id });
       }
       setChats(prev => prev.map(chat => {
         if (chat.id === currentChatId) {
@@ -247,7 +257,7 @@ export function Home() {
     } catch (error) {
       console.error("Erro ao refinar receitas:", error);
       updateActiveChat(chat => ({
-        messages: [...chat.messages, { role: 'assistant', content: 'Ops, algo deu errado. Não consegui processar sua mensagem.', type: 'text' }]
+        messages: [...chat.messages.slice(0, -1), { role: 'assistant', content: 'Ops, algo deu errado. Não consegui processar sua mensagem.', type: 'text' }]
       }));
     } finally {
       setLoadingChatIds(prev => prev.filter(id => id !== currentChatId));
@@ -332,7 +342,7 @@ export function Home() {
     }
   };
 
-  const showContinueButton = (activeChat && activeChat.ingredients.length > 0 && activeChat.messages.length === 0) || (canRegenerate && activeChat.ingredients.length > 0);
+  const showContinueButton = (activeChat && activeChat.ingredients.length > 0 && activeChat.messages.length > 0 && canRegenerate) || (activeChat && activeChat.ingredients.length > 0 && activeChat.messages.length === 0);
   const isChatStarted = activeChat && activeChat.messages.length > 0;
 
   if (!activeChat) {

@@ -1,6 +1,7 @@
 from flask import jsonify, request, Blueprint
 import json
 import re
+import concurrent.futures
 from backend.services.gemini import modelo, generation_config
 from backend.services.image_search import buscar_imagem_receita
 from backend.utils.promptConfig import construir_prompt_com_settings
@@ -39,7 +40,7 @@ def validar_receitas_da_ia(dados_receitas):
 @login_required
 def gerar_receitas():
     data = request.json or {}
-    chat_id = data.get("chatId")
+    chat_id_str = data.get("chatId")
     ingredientes = data.get("ingredientes", "").strip()
     settings = data.get("settings", {})
     user_message_data = data.get("userMessage")
@@ -47,9 +48,16 @@ def gerar_receitas():
     if not ingredientes or not user_message_data:
         return jsonify({"erro": "Dados insuficientes para gerar receita."}), 400
 
-    chat = Chat.query.get(chat_id) if chat_id and not str(chat_id).startswith('local-') else None
-    if chat_id and not str(chat_id).startswith('local-') and (not chat or chat.user_id != current_user.id):
-        return jsonify({"erro": "Chat não encontrado ou não autorizado."}), 404
+    chat = Chat.query.get(chat_id_str) if chat_id_str and not str(chat_id_str).startswith('local-') else None
+    
+    if not chat:
+        titulo_chat_inicial = user_message_data['content'][:50] if user_message_data else "Novo Pedido"
+        chat = Chat(user_id=current_user.id, title=titulo_chat_inicial, settings=settings)
+        db.session.add(chat)
+        db.session.flush()
+
+    user_message = Message(chat_id=chat.id, role=user_message_data['role'], content=user_message_data['content'], type=user_message_data['type'])
+    db.session.add(user_message)
     
     style = settings.get('style', 'criativo')
     estilo_desc = "criativas e surpreendentes" if style == 'criativo' else "populares e clássicas"
@@ -58,7 +66,6 @@ def gerar_receitas():
     Sua tarefa é gerar uma resposta JSON com uma lista de receitas com base nos ingredientes: **{ingredientes}**.
     O JSON de saída deve ter UMA chave no nível raiz: "receitas".
     O valor de "receitas" deve ser uma lista de EXATAMENTE 5 sugestões de receitas {estilo_desc}.
-
     Cada objeto na lista "receitas" DEVE seguir este schema:
     {{
         "titulo": "string",
@@ -80,15 +87,11 @@ def gerar_receitas():
         dados_receitas = json.loads(json_match.group(0))
         dados_receitas_validados = validar_receitas_da_ia(dados_receitas)
         
-        if not chat:
-            titulo_chat = dados_receitas_validados['receitas'][0]['titulo'] if dados_receitas_validados['receitas'] else "Novo Pedido"
-            chat = Chat(user_id=current_user.id, title=titulo_chat, settings=settings)
-            db.session.add(chat)
-
-        user_message = Message(chat=chat, role=user_message_data['role'], content=user_message_data['content'], type=user_message_data['type'])
-        db.session.add(user_message)
-        
-        assistant_message = Message(chat=chat, role='assistant', content=json.dumps(dados_receitas_validados['receitas']), type='recipe-carousel')
+        if str(chat_id_str).startswith('local-'):
+            titulo_chat = dados_receitas_validados['receitas'][0]['titulo'] if dados_receitas_validados['receitas'] else chat.title
+            chat.title = titulo_chat
+            
+        assistant_message = Message(chat_id=chat.id, role='assistant', content=json.dumps(dados_receitas_validados['receitas']), type='recipe-carousel')
         db.session.add(assistant_message)
         db.session.commit()
 
@@ -96,6 +99,7 @@ def gerar_receitas():
             "chatId": chat.id,
             "chatTitle": chat.title,
             "assistantMessage": {
+                "id": assistant_message.id,
                 "role": 'assistant',
                 "content": assistant_message.content,
                 "type": 'recipe-carousel'

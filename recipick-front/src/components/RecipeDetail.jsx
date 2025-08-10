@@ -6,7 +6,7 @@ export function RecipeDetail({ recipe, onClose }) {
     return null;
   }
 
-  // Função para fechar ao clicar no fundo
+  // Função para fechar ao clicar no fundo (overlay)
   const handleOutsideClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -16,11 +16,11 @@ export function RecipeDetail({ recipe, onClose }) {
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center p-4 z-50 animate-fade-in"
-      onClick={handleOutsideClick}
+      onClick={handleOutsideClick} // Adicionado o evento de clique aqui
     >
       <div 
         className="bg-solid text-black rounded-xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scale-up"
-        // Impede que o clique dentro do card feche o modal
+        // Impede que cliques dentro do card fechem o modal
         onClick={(e) => e.stopPropagation()}
       >
         <button 
@@ -43,6 +43,15 @@ export function RecipeDetail({ recipe, onClose }) {
           {recipe.tempoDePreparoEmMin && <span><strong>Tempo:</strong> {recipe.tempoDePreparoEmMin} min | </span>}
           {recipe.porcoes && <span><strong>Porções:</strong> {recipe.porcoes}</span>}
         </div>
+
+        {}
+        {recipe.imagemUrl && (
+            <img
+              src={recipe.imagemUrl}
+              alt={recipe.titulo}
+              className="w-full h-64 object-cover rounded-lg my-4" // my-4 adiciona margem
+            />
+        )}
 
         <hr className="border-t-1 border-solid-dark my-4" />
         
