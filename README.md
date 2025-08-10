@@ -33,33 +33,30 @@ cd backend
 Dentro da pasta `backend/`, duplique o arquivo `.env.example` e renomeie para `.env`. Em seguida, adicione sua chave da API Gemini e as origens permitidas. Por exemplo:
 
 ```text
-GEMINI_API_KEY=sua_chave_aqui
+GEMINI_API_KEY=
 ALLOWED_ORIGINS=http://localhost:5173
+GOOGLE_API_KEY=your_google_api_key_here
+CUSTOM_SEARCH_ENGINE_ID=your_ID_search_engine_here
+DATABASE_URL=postgresql://postgres:[SUA_SENHA]@[HOSTNAME_DO_PROJETO]/postgres
 ```
 
-## 2. Crie e ative um ambiente virtual
-
-```bash
-python -m venv venv
-source venv/bin/activate  # No Windows use: venv\Scripts\activate
-```
-
-### 3. Instale as dependências
+### 2. Instale as dependências
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Execute o servidor
+### 3. Volte ao diretório raiz e execute o servidor
 
 ```bash
-python app.py
+cd ..
+python -m backend.app
 ```
 
 ### Frontend
 
 ```bash
-cd frontend
+cd recipick-front
 ```
 
 ### 1. Instale as dependências
@@ -91,12 +88,14 @@ http://localhost:5173
 
 ## Funcionalidades
 
-- Adicione ingredientes por chat ou clique
-- Remova ingredientes individualmente com "×"
-- Geração automática de receitas com IA
-- Correção de erros de digitação nos ingredientes
-- Formatação limpa com markdown (negrito, listas)
-- Busca por nome de receitas via chatbot
+-   Geração Inteligente de Receitas:** Forneça uma lista de ingredientes e receba 5 sugestões de pratos, desde os mais clássicos aos mais criativos.
+-   Sistema de Múltiplos Chats:** Crie e gerencie várias conversas. Salve uma lista de ingredientes para carnes, outra para sobremesas, e volte a elas quando quiser.
+-   Personalização Avançada:** Cada chat possui configurações individuais de dieta (onívora, vegetariana, vegana), complexidade, estilo e porções.
+-   Interface Conversacional:** Interaja com o assistente para refinar os resultados. Adicione ou remova ingredientes e peça novas ideias sem perder o histórico.
+-   Gerenciamento de Chats:** Renomeie, favorite ou remova conversas para manter seu espaço organizado.
+-   Busca de Imagens Otimizada:** As imagens das receitas são buscadas através de uma API dedicada (`Foodish API`), garantindo relevância e carregamento rápido.
+-   Autenticação Segura:** Sistema completo de registro e login para que seus chats e preferências fiquem salvos e seguros.
+-   Design Totalmente Responsivo:** A experiência foi cuidadosamente desenhada para funcionar perfeitamente em desktops, tablets e celulares.
 
 ## Licença
 

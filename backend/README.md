@@ -1,26 +1,26 @@
 # ReciPick (Backend)
 
-This is the backend for ReciPick, a recipe management application.
+Este é o backend do ReciPick, um aplicativo de gerenciamento de receitas.
 
-## Getting Started
+## Começando
 
-To get started with the ReciPick backend, follow these steps:
+Para começar a usar o backend do ReciPick, siga estes passos:
 
-1. **Clone the repository**:
+1. **Clone o repositório**:
 
    ```bash
    git clone https://github.com/pedrohenriquefs9/Recipick
    cd Recipick/backend
    ```
 
-2. **Install dependencies**:
+2. **Instale as dependências**:
 
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Create the `.env` file**:
-    Inside the `backend/` directory, duplicate the file `.env.example` and rename it to `.env`. Then, add your Gemini API key and allowed origins. For example:
+3. **Crie o arquivo `.env`**:
+    Dentro da pasta `backend/`, duplique o arquivo `.env.example` e renomeie para `.env`. Em seguida, adicione sua chave da API Gemini e as origens permitidas. Por exemplo:
 
     ```text
     GEMINI_API_KEY=your_api_key_here
@@ -29,13 +29,13 @@ To get started with the ReciPick backend, follow these steps:
     CUSTOM_SEARCH_ENGINE_ID=your_ID_search_engine_here
     ```
 
-4. **Start the development server**:
+4. **Volte ao diretório raiz e execute o servidor**:
 
    ```bash
    cd ..
    python -m backend.app
    ```
 
-5. **Access the application**:
+5. **Acessar o projeto**:
 
-   Navigate to `http://localhost:5000` in your web browser to see the backend in action.
+   Navegue para `http://localhost:5000` no seu navegador da web para ver o backend em ação.

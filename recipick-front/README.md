@@ -1,35 +1,37 @@
 # ReciPick (Frontend)
 
-This is the frontend for ReciPick, a recipe management application.
+Este é o backend do ReciPick, um aplicativo de gerenciamento de receitas.
 
-## Getting Started
+## Começando
 
-To get started with the ReciPick frontend, follow these steps:
+Para começar a usar o backend do ReciPick, siga estes passos:
 
-1. **Clone the repository**:
+1. **Clone o repositório**:
 
    ```bash
    git clone https://github.com/pedrohenriquefs9/Recipick
    cd Recipick
    ```
 
-2. **Install dependencies**:
+2. **Instale as dependências**:
 
    ```bash
    npm install
    ```
 
-3. **Create the `.env` file**:
-   Inside the `recipick-front/` directory, duplicate the file `.env.example` and rename it to `.env`. Then, add your API URL. For example:
+3. **Crie o arquivo `.env`**:
+    Dentro da pasta `recipick-front/`, duplique o arquivo `.env.example` e renomeie para `.env`. Em seguida, adicione a url do backend. Por exemplo:
 
    ```text
    VITE_API_URL=http://localhost:5000/api
    ```
 
-4. **Start the development server**:
+4. **Execute o servidor**:
 
    ```bash
    npm run dev
    ```
 
-5. **Open your browser** and navigate to `http://localhost:5173` to see the application in action.
+5. **Acessar o projeto**:
+
+   Navegue para `http://localhost:5173` no seu navegador da web para ver o frontend em ação.
