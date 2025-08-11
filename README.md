@@ -97,6 +97,30 @@ http://localhost:5173
 -   Autenticação Segura:** Sistema completo de registro e login para que seus chats e preferências fiquem salvos e seguros.
 -   Design Totalmente Responsivo:** A experiência foi cuidadosamente desenhada para funcionar perfeitamente em desktops, tablets e celulares.
 
+## Tecnologias Utilizadas
+
+Frontend
+React: Biblioteca para construção da interface de usuário.
+
+- Vite: Ferramenta de build para um desenvolvimento rápido e otimizado.
+
+- Tailwind CSS: Framework CSS para estilização ágil e responsiva.
+
+- React Router: Para gerenciamento das rotas da aplicação.
+
+- Axios: Para realizar as chamadas HTTP para o backend.
+
+Backend
+Python: Linguagem de programação principal.
+
+- Flask: Micro-framework para a construção da API.
+
+- Gemini API: Modelo de IA do Google para a geração inteligente das receitas.
+
+- SQLAlchemy: ORM para interação com o banco de dados.
+
+- PostgreSQL: Banco de dados relacional para armazenamento dos dados.
+
 ## Licença
 
 O ReciPick é licenciado sob a licença [MIT](LICENSE).
