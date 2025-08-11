@@ -99,8 +99,8 @@ http://localhost:5173
 
 ## Tecnologias Utilizadas
 
-Frontend
-React: Biblioteca para construção da interface de usuário.
+### Frontend
+#### React: Biblioteca para construção da interface de usuário.
 
 - Vite: Ferramenta de build para um desenvolvimento rápido e otimizado.
 
@@ -110,8 +110,8 @@ React: Biblioteca para construção da interface de usuário.
 
 - Axios: Para realizar as chamadas HTTP para o backend.
 
-Backend
-Python: Linguagem de programação principal.
+### Backend
+#### Python: Linguagem de programação principal.
 
 - Flask: Micro-framework para a construção da API.
 
